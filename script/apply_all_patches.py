@@ -22,9 +22,13 @@ patch_dirs = {
 }
 
 
-def main():
-  for patch_dir, repo in patch_dirs:
+def apply_patches(dirs):
+  for patch_dir, repo in dirs:
     git.am(repo=repo, patch_data=patch_from_dir(patch_dir))
+
+
+def main():
+  apply_patches(patch_dirs)
 
 
 if __name__ == '__main__':
