@@ -5,7 +5,7 @@ import os
 
 def read_patch(patch_dir, patch_filename):
   """Read a patch from |patch_dir/filename| and amend the commit message with
-  metadata about the file."""
+  metadata about the patch file it came from."""
   ret = []
   with open(os.path.join(patch_dir, patch_filename)) as f:
     for l in f.readlines():
