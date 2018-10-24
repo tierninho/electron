@@ -5,12 +5,24 @@
 #ifndef ATOM_COMMON_ATOM_VERSION_H_
 #define ATOM_COMMON_ATOM_VERSION_H_
 
+<<<<<<< HEAD
 #define ATOM_MAJOR_VERSION 4
 #define ATOM_MINOR_VERSION 0
 #define ATOM_PATCH_VERSION 0
 // clang-format off
 #define ATOM_PRE_RELEASE_VERSION -nightly.20181010
 // clang-format on
+=======
+#define ATOM_MAJOR_VERSION 1
+#define ATOM_MINOR_VERSION 4
+#define ATOM_PATCH_VERSION 16
+
+#define ATOM_VERSION_IS_RELEASE 1
+
+#ifndef ATOM_TAG
+# define ATOM_TAG ""
+#endif
+>>>>>>> origin/1-4-x
 
 #ifndef ATOM_STRINGIFY
 #define ATOM_STRINGIFY(n) ATOM_STRINGIFY_HELPER(n)

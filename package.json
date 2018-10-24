@@ -1,8 +1,12 @@
 {
   "name": "electron",
+<<<<<<< HEAD
   "version": "4.0.0-nightly.20181010",
   "repository": "https://github.com/electron/electron",
   "description": "Build cross platform desktop apps with JavaScript, HTML, and CSS",
+=======
+  "version": "1.4.16",
+>>>>>>> origin/1-4-x
   "devDependencies": {
     "aliasify": "^2.1.0",
     "asar": "^0.11.0",
