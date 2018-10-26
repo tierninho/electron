@@ -5,7 +5,6 @@
 #include "atom/browser/net/asar/asar_protocol_handler.h"
 
 #include "atom/browser/net/asar/url_request_asar_job.h"
-#include "base/task_runner.h"
 #include "net/base/filename_util.h"
 #include "net/base/net_errors.h"
 
@@ -15,7 +14,8 @@ AsarProtocolHandler::AsarProtocolHandler(
     const scoped_refptr<base::TaskRunner>& file_task_runner)
     : file_task_runner_(file_task_runner) {}
 
-AsarProtocolHandler::~AsarProtocolHandler() {}
+AsarProtocolHandler::~AsarProtocolHandler() {
+}
 
 net::URLRequestJob* AsarProtocolHandler::MaybeCreateJob(
     net::URLRequest* request,

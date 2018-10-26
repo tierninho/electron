@@ -6,31 +6,31 @@
 
 #include <vector>
 
+#include "atom_natives.h"  // NOLINT: This file is generated with coffee2c.
+
 #include "atom/common/asar/archive.h"
 #include "atom/common/native_mate_converters/callback.h"
 #include "atom/common/native_mate_converters/file_path_converter.h"
+#include "atom/common/node_includes.h"
 #include "native_mate/arguments.h"
 #include "native_mate/dictionary.h"
 #include "native_mate/object_template_builder.h"
 #include "native_mate/wrappable.h"
-
-#include "atom/common/node_includes.h"
-#include "atom_natives.h"  // NOLINT: This file is generated with js2c.
 
 namespace {
 
 class Archive : public mate::Wrappable<Archive> {
  public:
   static v8::Local<v8::Value> Create(v8::Isolate* isolate,
-                                     const base::FilePath& path) {
-    auto archive = std::make_unique<asar::Archive>(path);
+                                      const base::FilePath& path) {
+    std::unique_ptr<asar::Archive> archive(new asar::Archive(path));
     if (!archive->Init())
       return v8::False(isolate);
     return (new Archive(isolate, std::move(archive)))->GetWrapper();
   }
 
-  static void BuildPrototype(v8::Isolate* isolate,
-                             v8::Local<v8::FunctionTemplate> prototype) {
+  static void BuildPrototype(
+      v8::Isolate* isolate, v8::Local<v8::FunctionTemplate> prototype) {
     prototype->SetClassName(mate::StringToV8(isolate, "Archive"));
     mate::ObjectTemplateBuilder(isolate, prototype->PrototypeTemplate())
         .SetProperty("path", &Archive::GetPath)
@@ -50,11 +50,13 @@ class Archive : public mate::Wrappable<Archive> {
   }
 
   // Returns the path of the file.
-  base::FilePath GetPath() { return archive_->path(); }
+  base::FilePath GetPath() {
+    return archive_->path();
+  }
 
   // Reads the offset and size of file.
   v8::Local<v8::Value> GetFileInfo(v8::Isolate* isolate,
-                                   const base::FilePath& path) {
+                                    const base::FilePath& path) {
     asar::Archive::FileInfo info;
     if (!archive_ || !archive_->GetFileInfo(path, &info))
       return v8::False(isolate);
@@ -66,7 +68,8 @@ class Archive : public mate::Wrappable<Archive> {
   }
 
   // Returns a fake result of fs.stat(path).
-  v8::Local<v8::Value> Stat(v8::Isolate* isolate, const base::FilePath& path) {
+  v8::Local<v8::Value> Stat(v8::Isolate* isolate,
+                             const base::FilePath& path) {
     asar::Archive::Stats stats;
     if (!archive_ || !archive_->Stat(path, &stats))
       return v8::False(isolate);
@@ -81,7 +84,7 @@ class Archive : public mate::Wrappable<Archive> {
 
   // Returns all files under a directory.
   v8::Local<v8::Value> Readdir(v8::Isolate* isolate,
-                               const base::FilePath& path) {
+                                const base::FilePath& path) {
     std::vector<base::FilePath> files;
     if (!archive_ || !archive_->Readdir(path, &files))
       return v8::False(isolate);
@@ -90,7 +93,7 @@ class Archive : public mate::Wrappable<Archive> {
 
   // Returns the path of file with symbol link resolved.
   v8::Local<v8::Value> Realpath(v8::Isolate* isolate,
-                                const base::FilePath& path) {
+                                 const base::FilePath& path) {
     base::FilePath realpath;
     if (!archive_ || !archive_->Realpath(path, &realpath))
       return v8::False(isolate);
@@ -99,7 +102,7 @@ class Archive : public mate::Wrappable<Archive> {
 
   // Copy the file out into a temporary file and returns the new path.
   v8::Local<v8::Value> CopyFileOut(v8::Isolate* isolate,
-                                   const base::FilePath& path) {
+                                    const base::FilePath& path) {
     base::FilePath new_path;
     if (!archive_ || !archive_->CopyFileOut(path, &new_path))
       return v8::False(isolate);
@@ -114,7 +117,9 @@ class Archive : public mate::Wrappable<Archive> {
   }
 
   // Free the resources used by archive.
-  void Destroy() { archive_.reset(); }
+  void Destroy() {
+    archive_.reset();
+  }
 
  private:
   std::unique_ptr<asar::Archive> archive_;
@@ -125,26 +130,32 @@ class Archive : public mate::Wrappable<Archive> {
 void InitAsarSupport(v8::Isolate* isolate,
                      v8::Local<v8::Value> process,
                      v8::Local<v8::Value> require) {
-  // Evaluate asar_init.js.
-  v8::Local<v8::Script> asar_init =
-      v8::Script::Compile(node::asar_init_value.ToStringChecked(isolate));
+  // Evaluate asar_init.coffee.
+  const char* asar_init_native = reinterpret_cast<const char*>(
+      static_cast<const unsigned char*>(node::asar_init_data));
+  v8::Local<v8::Script> asar_init = v8::Script::Compile(v8::String::NewFromUtf8(
+      isolate,
+      asar_init_native,
+      v8::String::kNormalString,
+      sizeof(node::asar_init_data) -1));
   v8::Local<v8::Value> result = asar_init->Run();
 
   // Initialize asar support.
   if (result->IsFunction()) {
+    const char* asar_native = reinterpret_cast<const char*>(
+        static_cast<const unsigned char*>(node::asar_data));
+    base::StringPiece asar_data(asar_native, sizeof(node::asar_data) - 1);
     v8::Local<v8::Value> args[] = {
         process,
         require,
-        node::asar_value.ToStringChecked(isolate),
+        mate::ConvertToV8(isolate, asar_data),
     };
     result.As<v8::Function>()->Call(result, 3, args);
   }
 }
 
-void Initialize(v8::Local<v8::Object> exports,
-                v8::Local<v8::Value> unused,
-                v8::Local<v8::Context> context,
-                void* priv) {
+void Initialize(v8::Local<v8::Object> exports, v8::Local<v8::Value> unused,
+                v8::Local<v8::Context> context, void* priv) {
   mate::Dictionary dict(context->GetIsolate(), exports);
   dict.SetMethod("createArchive", &Archive::Create);
   dict.SetMethod("initAsarSupport", &InitAsarSupport);
@@ -152,4 +163,4 @@ void Initialize(v8::Local<v8::Object> exports,
 
 }  // namespace
 
-NODE_BUILTIN_MODULE_CONTEXT_AWARE(atom_common_asar, Initialize)
+NODE_MODULE_CONTEXT_AWARE_BUILTIN(atom_common_asar, Initialize)

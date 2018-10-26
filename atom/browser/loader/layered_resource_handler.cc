@@ -4,9 +4,6 @@
 
 #include "atom/browser/loader/layered_resource_handler.h"
 
-#include <memory>
-#include <utility>
-
 namespace atom {
 
 LayeredResourceHandler::LayeredResourceHandler(
@@ -18,12 +15,12 @@ LayeredResourceHandler::LayeredResourceHandler(
 
 LayeredResourceHandler::~LayeredResourceHandler() {}
 
-void LayeredResourceHandler::OnResponseStarted(
-    network::ResourceResponse* response,
-    std::unique_ptr<content::ResourceController> controller) {
+bool LayeredResourceHandler::OnResponseStarted(
+    content::ResourceResponse* response,
+    bool* defer) {
   if (delegate_)
     delegate_->OnResponseStarted(response);
-  next_handler_->OnResponseStarted(response, std::move(controller));
+  return next_handler_->OnResponseStarted(response, defer);
 }
 
 }  // namespace atom

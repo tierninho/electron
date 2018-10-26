@@ -18,7 +18,7 @@ class AsarProtocolHandler : public net::URLRequestJobFactory::ProtocolHandler {
  public:
   explicit AsarProtocolHandler(
       const scoped_refptr<base::TaskRunner>& file_task_runner);
-  ~AsarProtocolHandler() override;
+  virtual ~AsarProtocolHandler();
 
   // net::URLRequestJobFactory::ProtocolHandler:
   net::URLRequestJob* MaybeCreateJob(

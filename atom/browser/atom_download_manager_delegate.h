@@ -22,8 +22,15 @@ class AtomDownloadManagerDelegate : public content::DownloadManagerDelegate {
       base::Callback<void(const base::FilePath&)>;
 
   explicit AtomDownloadManagerDelegate(content::DownloadManager* manager);
-  ~AtomDownloadManagerDelegate() override;
+  virtual ~AtomDownloadManagerDelegate();
 
+  // Generate default file path to save the download.
+  void CreateDownloadPath(const GURL& url,
+                          const std::string& suggested_filename,
+                          const std::string& content_disposition,
+                          const std::string& mime_type,
+                          const base::FilePath& path,
+                          const CreateDownloadPathCallback& callback);
   void OnDownloadPathGenerated(uint32_t download_id,
                                const content::DownloadTargetCallback& callback,
                                const base::FilePath& default_path);
@@ -31,16 +38,16 @@ class AtomDownloadManagerDelegate : public content::DownloadManagerDelegate {
   // content::DownloadManagerDelegate:
   void Shutdown() override;
   bool DetermineDownloadTarget(
-      download::DownloadItem* download,
+      content::DownloadItem* download,
       const content::DownloadTargetCallback& callback) override;
   bool ShouldOpenDownload(
-      download::DownloadItem* download,
+      content::DownloadItem* download,
       const content::DownloadOpenDelayedCallback& callback) override;
   void GetNextId(const content::DownloadIdCallback& callback) override;
 
  private:
   // Get the save path set on the associated api::DownloadItem object
-  void GetItemSavePath(download::DownloadItem* item, base::FilePath* path);
+  void GetItemSavePath(content::DownloadItem* item, base::FilePath* path);
 
   content::DownloadManager* download_manager_;
   base::WeakPtrFactory<AtomDownloadManagerDelegate> weak_ptr_factory_;

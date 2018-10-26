@@ -45,8 +45,7 @@ mate::Handle<SystemPreferences> SystemPreferences::Create(
 
 // static
 void SystemPreferences::BuildPrototype(
-    v8::Isolate* isolate,
-    v8::Local<v8::FunctionTemplate> prototype) {
+    v8::Isolate* isolate, v8::Local<v8::FunctionTemplate> prototype) {
   prototype->SetClassName(mate::StringToV8(isolate, "SystemPreferences"));
   mate::ObjectTemplateBuilder(isolate, prototype->PrototypeTemplate())
 #if defined(OS_WIN)
@@ -54,35 +53,22 @@ void SystemPreferences::BuildPrototype(
       .SetMethod("isAeroGlassEnabled", &SystemPreferences::IsAeroGlassEnabled)
       .SetMethod("getColor", &SystemPreferences::GetColor)
 #elif defined(OS_MACOSX)
-      .SetMethod("postNotification", &SystemPreferences::PostNotification)
+      .SetMethod("postNotification",
+                 &SystemPreferences::PostNotification)
+      .SetMethod("postLocalNotification",
+                 &SystemPreferences::PostLocalNotification)
       .SetMethod("subscribeNotification",
                  &SystemPreferences::SubscribeNotification)
       .SetMethod("unsubscribeNotification",
                  &SystemPreferences::UnsubscribeNotification)
-      .SetMethod("postLocalNotification",
-                 &SystemPreferences::PostLocalNotification)
       .SetMethod("subscribeLocalNotification",
                  &SystemPreferences::SubscribeLocalNotification)
       .SetMethod("unsubscribeLocalNotification",
                  &SystemPreferences::UnsubscribeLocalNotification)
-      .SetMethod("postWorkspaceNotification",
-                 &SystemPreferences::PostWorkspaceNotification)
-      .SetMethod("subscribeWorkspaceNotification",
-                 &SystemPreferences::SubscribeWorkspaceNotification)
-      .SetMethod("unsubscribeWorkspaceNotification",
-                 &SystemPreferences::UnsubscribeWorkspaceNotification)
-      .SetMethod("registerDefaults", &SystemPreferences::RegisterDefaults)
       .SetMethod("getUserDefault", &SystemPreferences::GetUserDefault)
       .SetMethod("setUserDefault", &SystemPreferences::SetUserDefault)
-      .SetMethod("removeUserDefault", &SystemPreferences::RemoveUserDefault)
       .SetMethod("isSwipeTrackingFromScrollEventsEnabled",
                  &SystemPreferences::IsSwipeTrackingFromScrollEventsEnabled)
-      .SetMethod("getEffectiveAppearance",
-                 &SystemPreferences::GetEffectiveAppearance)
-      .SetMethod("getAppLevelAppearance",
-                 &SystemPreferences::GetAppLevelAppearance)
-      .SetMethod("setAppLevelAppearance",
-                 &SystemPreferences::SetAppLevelAppearance)
 #endif
       .SetMethod("isInvertedColorScheme",
                  &SystemPreferences::IsInvertedColorScheme)
@@ -97,10 +83,8 @@ namespace {
 
 using atom::api::SystemPreferences;
 
-void Initialize(v8::Local<v8::Object> exports,
-                v8::Local<v8::Value> unused,
-                v8::Local<v8::Context> context,
-                void* priv) {
+void Initialize(v8::Local<v8::Object> exports, v8::Local<v8::Value> unused,
+                v8::Local<v8::Context> context, void* priv) {
   v8::Isolate* isolate = context->GetIsolate();
   mate::Dictionary dict(isolate, exports);
   dict.Set("systemPreferences", SystemPreferences::Create(isolate));
@@ -110,4 +94,4 @@ void Initialize(v8::Local<v8::Object> exports,
 
 }  // namespace
 
-NODE_BUILTIN_MODULE_CONTEXT_AWARE(atom_browser_system_preferences, Initialize);
+NODE_MODULE_CONTEXT_AWARE_BUILTIN(atom_browser_system_preferences, Initialize);

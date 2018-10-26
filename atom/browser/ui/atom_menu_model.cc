@@ -8,16 +8,13 @@
 
 namespace atom {
 
-bool AtomMenuModel::Delegate::GetAcceleratorForCommandId(
-    int command_id,
-    ui::Accelerator* accelerator) const {
-  return GetAcceleratorForCommandIdWithParams(command_id, false, accelerator);
+AtomMenuModel::AtomMenuModel(Delegate* delegate)
+    : ui::SimpleMenuModel(delegate),
+      delegate_(delegate) {
 }
 
-AtomMenuModel::AtomMenuModel(Delegate* delegate)
-    : ui::SimpleMenuModel(delegate), delegate_(delegate) {}
-
-AtomMenuModel::~AtomMenuModel() {}
+AtomMenuModel::~AtomMenuModel() {
+}
 
 void AtomMenuModel::SetRole(int index, const base::string16& role) {
   int command_id = GetCommandIdAt(index);
@@ -45,16 +42,8 @@ bool AtomMenuModel::GetAcceleratorAtWithParams(
 
 void AtomMenuModel::MenuWillClose() {
   ui::SimpleMenuModel::MenuWillClose();
-  for (Observer& observer : observers_) {
-    observer.OnMenuWillClose();
-  }
-}
-
-void AtomMenuModel::MenuWillShow() {
-  ui::SimpleMenuModel::MenuWillShow();
-  for (Observer& observer : observers_) {
-    observer.OnMenuWillShow();
-  }
+  for (Observer& observer : observers_)
+    observer.MenuWillClose();
 }
 
 AtomMenuModel* AtomMenuModel::GetSubmenuModelAt(int index) {

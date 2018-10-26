@@ -42,7 +42,7 @@ class URLRequestAsarJob : public net::URLRequestJob {
                   const base::FilePath& file_path);
 
  protected:
-  ~URLRequestAsarJob() override;
+  virtual ~URLRequestAsarJob();
 
   void InitializeAsarJob(const scoped_refptr<base::TaskRunner> file_task_runner,
                          std::shared_ptr<Archive> archive,
@@ -55,9 +55,7 @@ class URLRequestAsarJob : public net::URLRequestJob {
   void Start() override;
   void Kill() override;
   int ReadRawData(net::IOBuffer* buf, int buf_size) override;
-  bool IsRedirectResponse(GURL* location,
-                          int* http_status_code,
-                          bool* insecure_scheme_was_upgraded) override;
+  bool IsRedirectResponse(GURL* location, int* http_status_code) override;
   std::unique_ptr<net::SourceStream> SetUpSourceStream() override;
   bool GetMimeType(std::string* mime_type) const override;
   void SetExtraRequestHeaders(const net::HttpRequestHeaders& headers) override;
@@ -65,41 +63,32 @@ class URLRequestAsarJob : public net::URLRequestJob {
   void GetResponseInfo(net::HttpResponseInfo* info) override;
 
  private:
-  // The type of this job.
-  enum JobType {
-    TYPE_ERROR,
-    TYPE_ASAR,
-    TYPE_FILE,
-  };
-
   // Meta information about the file. It's used as a member in the
   // URLRequestFileJob and also passed between threads because disk access is
   // necessary to obtain it.
   struct FileMetaInfo {
+    FileMetaInfo();
+
     // Size of the file.
-    int64_t file_size = 0;
+    int64_t file_size;
     // Mime type associated with the file.
     std::string mime_type;
     // Result returned from GetMimeTypeFromFile(), i.e. flag showing whether
     // obtaining of the mime type was successful.
-    bool mime_type_result = false;
+    bool mime_type_result;
     // Flag showing whether the file exists.
-    bool file_exists = false;
+    bool file_exists;
     // Flag showing whether the file name actually refers to a directory.
-    bool is_directory = false;
-    // Path to the file.
-    base::FilePath file_path;
-
-    FileMetaInfo();
+    bool is_directory;
   };
 
   // Fetches file info on a background thread.
   static void FetchMetaInfo(const base::FilePath& file_path,
-                            JobType type,
                             FileMetaInfo* meta_info);
 
   // Callback after fetching file info on a background thread.
   void DidFetchMetaInfo(const FileMetaInfo* meta_info);
+
 
   // Callback after opening file on a background thread.
   void DidOpen(int result);
@@ -111,7 +100,13 @@ class URLRequestAsarJob : public net::URLRequestJob {
   // Callback after data is asynchronously read from the file into |buf|.
   void DidRead(scoped_refptr<net::IOBuffer> buf, int result);
 
-  JobType type_ = TYPE_ERROR;
+  // The type of this job.
+  enum JobType {
+    TYPE_ERROR,
+    TYPE_ASAR,
+    TYPE_FILE,
+  };
+  JobType type_;
 
   std::shared_ptr<Archive> archive_;
   base::FilePath file_path_;
@@ -122,10 +117,10 @@ class URLRequestAsarJob : public net::URLRequestJob {
   scoped_refptr<base::TaskRunner> file_task_runner_;
 
   net::HttpByteRange byte_range_;
-  int64_t remaining_bytes_ = 0;
-  int64_t seek_offset_ = 0;
+  int64_t remaining_bytes_;
+  int64_t seek_offset_;
 
-  net::Error range_parse_result_ = net::OK;
+  net::Error range_parse_result_;
 
   base::WeakPtrFactory<URLRequestAsarJob> weak_ptr_factory_;
 

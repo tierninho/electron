@@ -13,7 +13,7 @@
 namespace content {
 class RenderFrame;
 class RendererPpapiHost;
-}  // namespace content
+}
 
 namespace pdf {
 

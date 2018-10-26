@@ -5,7 +5,6 @@
 #ifndef ATOM_BROWSER_UI_WEBUI_PDF_VIEWER_UI_H_
 #define ATOM_BROWSER_UI_WEBUI_PDF_VIEWER_UI_H_
 
-#include <memory>
 #include <string>
 
 #include "base/macros.h"
@@ -16,7 +15,7 @@
 namespace content {
 class BrowserContext;
 struct StreamInfo;
-}  // namespace content
+}
 
 namespace atom {
 

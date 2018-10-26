@@ -20,10 +20,9 @@
 
 namespace mate {
 
-template <>
+template<>
 struct Converter<atom::TrayIcon::HighlightMode> {
-  static bool FromV8(v8::Isolate* isolate,
-                     v8::Local<v8::Value> val,
+  static bool FromV8(v8::Isolate* isolate, v8::Local<v8::Value> val,
                      atom::TrayIcon::HighlightMode* out) {
     std::string mode;
     if (ConvertFromV8(isolate, val, &mode)) {
@@ -40,17 +39,29 @@ struct Converter<atom::TrayIcon::HighlightMode> {
         return true;
       }
     }
+
+    // Support old boolean parameter
+    // TODO(kevinsawicki): Remove in 2.0, deprecate before then with warnings
+    bool highlight;
+    if (ConvertFromV8(isolate, val, &highlight)) {
+      if (highlight)
+        *out = atom::TrayIcon::HighlightMode::SELECTION;
+      else
+        *out = atom::TrayIcon::HighlightMode::NEVER;
+      return true;
+    }
+
     return false;
   }
 };
 }  // namespace mate
 
+
 namespace atom {
 
 namespace api {
 
-Tray::Tray(v8::Isolate* isolate,
-           v8::Local<v8::Object> wrapper,
+Tray::Tray(v8::Isolate* isolate, v8::Local<v8::Object> wrapper,
            mate::Handle<NativeImage> image)
     : tray_icon_(TrayIcon::Create()) {
   SetImage(isolate, image);
@@ -61,8 +72,8 @@ Tray::Tray(v8::Isolate* isolate,
 
 Tray::~Tray() {
   // Destroy the native tray in next tick.
-  base::ThreadTaskRunnerHandle::Get()->DeleteSoon(FROM_HERE,
-                                                  tray_icon_.release());
+  base::ThreadTaskRunnerHandle::Get()->DeleteSoon(
+      FROM_HERE, tray_icon_.release());
 }
 
 // static
@@ -75,10 +86,8 @@ mate::WrappableBase* Tray::New(mate::Handle<NativeImage> image,
   return new Tray(args->isolate(), args->GetThis(), image);
 }
 
-void Tray::OnClicked(const gfx::Rect& bounds,
-                     const gfx::Point& location,
-                     int modifiers) {
-  EmitWithFlags("click", modifiers, bounds, location);
+void Tray::OnClicked(const gfx::Rect& bounds, int modifiers) {
+  EmitWithFlags("click", modifiers, bounds);
 }
 
 void Tray::OnDoubleClicked(const gfx::Rect& bounds, int modifiers) {
@@ -111,18 +120,6 @@ void Tray::OnDropFiles(const std::vector<std::string>& files) {
 
 void Tray::OnDropText(const std::string& text) {
   Emit("drop-text", text);
-}
-
-void Tray::OnMouseEntered(const gfx::Point& location, int modifiers) {
-  EmitWithFlags("mouse-enter", modifiers, location);
-}
-
-void Tray::OnMouseExited(const gfx::Point& location, int modifiers) {
-  EmitWithFlags("mouse-leave", modifiers, location);
-}
-
-void Tray::OnMouseMoved(const gfx::Point& location, int modifiers) {
-  EmitWithFlags("mouse-move", modifiers, location);
 }
 
 void Tray::OnDragEntered() {
@@ -166,26 +163,13 @@ void Tray::SetHighlightMode(TrayIcon::HighlightMode mode) {
   tray_icon_->SetHighlightMode(mode);
 }
 
-void Tray::SetIgnoreDoubleClickEvents(bool ignore) {
-#if defined(OS_MACOSX)
-  tray_icon_->SetIgnoreDoubleClickEvents(ignore);
-#endif
-}
-
-bool Tray::GetIgnoreDoubleClickEvents() {
-#if defined(OS_MACOSX)
-  return tray_icon_->GetIgnoreDoubleClickEvents();
-#else
-  return false;
-#endif
-}
-
 void Tray::DisplayBalloon(mate::Arguments* args,
                           const mate::Dictionary& options) {
   mate::Handle<NativeImage> icon;
   options.Get("icon", &icon);
   base::string16 title, content;
-  if (!options.Get("title", &title) || !options.Get("content", &content)) {
+  if (!options.Get("title", &title) ||
+      !options.Get("content", &content)) {
     args->ThrowError("'title' and 'content' must be defined");
     return;
   }
@@ -195,8 +179,8 @@ void Tray::DisplayBalloon(mate::Arguments* args,
       icon.IsEmpty() ? NULL : icon->GetHICON(GetSystemMetrics(SM_CXSMICON)),
       title, content);
 #else
-  tray_icon_->DisplayBalloon(icon.IsEmpty() ? gfx::Image() : icon->image(),
-                             title, content);
+  tray_icon_->DisplayBalloon(
+      icon.IsEmpty() ? gfx::Image() : icon->image(), title, content);
 #endif
 }
 
@@ -210,7 +194,7 @@ void Tray::PopUpContextMenu(mate::Arguments* args) {
 
 void Tray::SetContextMenu(v8::Isolate* isolate, mate::Handle<Menu> menu) {
   menu_.Reset(isolate, menu.ToV8());
-  tray_icon_->SetContextMenu(menu.IsEmpty() ? nullptr : menu->model());
+  tray_icon_->SetContextMenu(menu->model());
 }
 
 gfx::Rect Tray::GetBounds() {
@@ -228,10 +212,6 @@ void Tray::BuildPrototype(v8::Isolate* isolate,
       .SetMethod("setToolTip", &Tray::SetToolTip)
       .SetMethod("setTitle", &Tray::SetTitle)
       .SetMethod("setHighlightMode", &Tray::SetHighlightMode)
-      .SetMethod("setIgnoreDoubleClickEvents",
-                 &Tray::SetIgnoreDoubleClickEvents)
-      .SetMethod("getIgnoreDoubleClickEvents",
-                 &Tray::GetIgnoreDoubleClickEvents)
       .SetMethod("displayBalloon", &Tray::DisplayBalloon)
       .SetMethod("popUpContextMenu", &Tray::PopUpContextMenu)
       .SetMethod("setContextMenu", &Tray::SetContextMenu)
@@ -242,14 +222,13 @@ void Tray::BuildPrototype(v8::Isolate* isolate,
 
 }  // namespace atom
 
+
 namespace {
 
 using atom::api::Tray;
 
-void Initialize(v8::Local<v8::Object> exports,
-                v8::Local<v8::Value> unused,
-                v8::Local<v8::Context> context,
-                void* priv) {
+void Initialize(v8::Local<v8::Object> exports, v8::Local<v8::Value> unused,
+                v8::Local<v8::Context> context, void* priv) {
   v8::Isolate* isolate = context->GetIsolate();
   Tray::SetConstructor(isolate, base::Bind(&Tray::New));
 
@@ -259,4 +238,4 @@ void Initialize(v8::Local<v8::Object> exports,
 
 }  // namespace
 
-NODE_BUILTIN_MODULE_CONTEXT_AWARE(atom_browser_tray, Initialize)
+NODE_MODULE_CONTEXT_AWARE_BUILTIN(atom_browser_tray, Initialize)

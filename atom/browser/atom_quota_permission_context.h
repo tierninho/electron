@@ -6,7 +6,6 @@
 #define ATOM_BROWSER_ATOM_QUOTA_PERMISSION_CONTEXT_H_
 
 #include "content/public/browser/quota_permission_context.h"
-#include "content/public/common/storage_quota_params.h"
 
 namespace atom {
 
@@ -15,15 +14,15 @@ class AtomQuotaPermissionContext : public content::QuotaPermissionContext {
   typedef content::QuotaPermissionContext::QuotaPermissionResponse response;
 
   AtomQuotaPermissionContext();
+  virtual ~AtomQuotaPermissionContext();
 
   // content::QuotaPermissionContext:
-  void RequestQuotaPermission(const content::StorageQuotaParams& params,
-                              int render_process_id,
-                              const PermissionCallback& callback) override;
+  void RequestQuotaPermission(
+      const content::StorageQuotaParams& params,
+      int render_process_id,
+      const PermissionCallback& callback) override;
 
  private:
-  ~AtomQuotaPermissionContext() override;
-
   DISALLOW_COPY_AND_ASSIGN(AtomQuotaPermissionContext);
 };
 

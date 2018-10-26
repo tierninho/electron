@@ -5,21 +5,18 @@ const path = require('path')
 const fs = require('fs')
 const send = require('send')
 const auth = require('basic-auth')
-const { closeWindow } = require('./window-helpers')
+const {closeWindow} = require('./window-helpers')
 
-const { ipcRenderer, remote } = require('electron')
-const { ipcMain, session, BrowserWindow, net } = remote
+const {ipcRenderer, remote} = require('electron')
+const {ipcMain, session, BrowserWindow, net} = remote
 
-/* The whole session API doesn't use standard callbacks */
-/* eslint-disable standard/no-callback-literal */
+describe('session module', function () {
+  var fixtures = path.resolve(__dirname, 'fixtures')
+  var w = null
+  var webview = null
+  var url = 'http://127.0.0.1'
 
-describe('session module', () => {
-  let fixtures = path.resolve(__dirname, 'fixtures')
-  let w = null
-  let webview = null
-  const url = 'http://127.0.0.1'
-
-  beforeEach(() => {
+  beforeEach(function () {
     w = new BrowserWindow({
       show: false,
       width: 400,
@@ -27,7 +24,7 @@ describe('session module', () => {
     })
   })
 
-  afterEach(() => {
+  afterEach(function () {
     if (webview != null) {
       if (!document.body.contains(webview)) {
         document.body.appendChild(webview)
@@ -35,110 +32,130 @@ describe('session module', () => {
       webview.remove()
     }
 
-    return closeWindow(w).then(() => { w = null })
+    return closeWindow(w).then(function () { w = null })
   })
 
-  describe('session.defaultSession', () => {
-    it('returns the default session', () => {
-      assert.strictEqual(session.defaultSession, session.fromPartition(''))
+  describe('session.defaultSession', function () {
+    it('returns the default session', function () {
+      assert.equal(session.defaultSession, session.fromPartition(''))
     })
   })
 
-  describe('session.fromPartition(partition, options)', () => {
-    it('returns existing session with same partition', () => {
-      assert.strictEqual(session.fromPartition('test'), session.fromPartition('test'))
+  describe('session.fromPartition(partition, options)', function () {
+    it('returns existing session with same partition', function () {
+      assert.equal(session.fromPartition('test'), session.fromPartition('test'))
     })
 
-    it('created session is ref-counted', () => {
+    it('created session is ref-counted', function () {
       const partition = 'test2'
       const userAgent = 'test-agent'
       const ses1 = session.fromPartition(partition)
       ses1.setUserAgent(userAgent)
-      assert.strictEqual(ses1.getUserAgent(), userAgent)
+      assert.equal(ses1.getUserAgent(), userAgent)
       ses1.destroy()
       const ses2 = session.fromPartition(partition)
-      assert.notStrictEqual(ses2.getUserAgent(), userAgent)
+      assert.notEqual(ses2.getUserAgent(), userAgent)
     })
   })
 
-  describe('ses.cookies', () => {
-    it('should get cookies', (done) => {
-      const server = http.createServer((req, res) => {
+  describe('ses.cookies', function () {
+    it('should get cookies', function (done) {
+      var server = http.createServer(function (req, res) {
         res.setHeader('Set-Cookie', ['0=0'])
         res.end('finished')
         server.close()
       })
-      server.listen(0, '127.0.0.1', () => {
-        const port = server.address().port
-        w.loadURL(`${url}:${port}`)
-        w.webContents.on('did-finish-load', () => {
-          w.webContents.session.cookies.get({ url }, (error, list) => {
-            if (error) return done(error)
-            for (let i = 0; i < list.length; i++) {
-              const cookie = list[i]
+      server.listen(0, '127.0.0.1', function () {
+        var port = server.address().port
+        w.loadURL(url + ':' + port)
+        w.webContents.on('did-finish-load', function () {
+          w.webContents.session.cookies.get({
+            url: url
+          }, function (error, list) {
+            var cookie, i, len
+            if (error) {
+              return done(error)
+            }
+            for (i = 0, len = list.length; i < len; i++) {
+              cookie = list[i]
               if (cookie.name === '0') {
                 if (cookie.value === '0') {
                   return done()
                 } else {
-                  return done(`cookie value is ${cookie.value} while expecting 0`)
+                  return done('cookie value is ' + cookie.value + ' while expecting 0')
                 }
               }
             }
-            done('Can\'t find cookie')
+            done('Can not find cookie')
           })
         })
       })
     })
 
-    it('calls back with an error when setting a cookie with missing required fields', (done) => {
+    it('calls back with an error when setting a cookie with missing required fields', function (done) {
       session.defaultSession.cookies.set({
         url: '',
         name: '1',
         value: '1'
-      }, (error) => {
-        assert(error, 'Should have an error')
-        assert.strictEqual(error.message, 'Setting cookie failed')
+      }, function (error) {
+        assert.equal(error.message, 'Setting cookie failed')
         done()
       })
     })
 
-    it('should over-write the existent cookie', (done) => {
+    it('should over-write the existent cookie', function (done) {
       session.defaultSession.cookies.set({
-        url,
+        url: url,
         name: '1',
         value: '1'
-      }, (error) => {
-        if (error) return done(error)
-        session.defaultSession.cookies.get({ url }, (error, list) => {
-          if (error) return done(error)
-          for (let i = 0; i < list.length; i++) {
-            const cookie = list[i]
+      }, function (error) {
+        if (error) {
+          return done(error)
+        }
+        session.defaultSession.cookies.get({
+          url: url
+        }, function (error, list) {
+          var cookie, i, len
+          if (error) {
+            return done(error)
+          }
+          for (i = 0, len = list.length; i < len; i++) {
+            cookie = list[i]
             if (cookie.name === '1') {
               if (cookie.value === '1') {
                 return done()
               } else {
-                return done(`cookie value is ${cookie.value} while expecting 1`)
+                return done('cookie value is ' + cookie.value + ' while expecting 1')
               }
             }
           }
-          done('Can\'t find cookie')
+          done('Can not find cookie')
         })
       })
     })
 
-    it('should remove cookies', (done) => {
+    it('should remove cookies', function (done) {
       session.defaultSession.cookies.set({
         url: url,
         name: '2',
         value: '2'
-      }, (error) => {
-        if (error) return done(error)
-        session.defaultSession.cookies.remove(url, '2', () => {
-          session.defaultSession.cookies.get({ url }, (error, list) => {
-            if (error) return done(error)
-            for (let i = 0; i < list.length; i++) {
-              const cookie = list[i]
-              if (cookie.name === '2') return done('Cookie not deleted')
+      }, function (error) {
+        if (error) {
+          return done(error)
+        }
+        session.defaultSession.cookies.remove(url, '2', function () {
+          session.defaultSession.cookies.get({
+            url: url
+          }, function (error, list) {
+            var cookie, i, len
+            if (error) {
+              return done(error)
+            }
+            for (i = 0, len = list.length; i < len; i++) {
+              cookie = list[i]
+              if (cookie.name === '2') {
+                return done('Cookie not deleted')
+              }
             }
             done()
           })
@@ -146,44 +163,50 @@ describe('session module', () => {
       })
     })
 
-    it('should set cookie for standard scheme', (done) => {
+    it('should set cookie for standard scheme', function (done) {
       const standardScheme = remote.getGlobal('standardScheme')
       const origin = standardScheme + '://fake-host'
       session.defaultSession.cookies.set({
         url: origin,
         name: 'custom',
         value: '1'
-      }, (error) => {
-        if (error) return done(error)
-        session.defaultSession.cookies.get({ url: origin }, (error, list) => {
-          if (error) return done(error)
-          assert.strictEqual(list.length, 1)
-          assert.strictEqual(list[0].name, 'custom')
-          assert.strictEqual(list[0].value, '1')
-          assert.strictEqual(list[0].domain, 'fake-host')
+      }, function (error) {
+        if (error) {
+          return done(error)
+        }
+        session.defaultSession.cookies.get({
+          url: origin
+        }, function (error, list) {
+          if (error) {
+            return done(error)
+          }
+          assert.equal(list.length, 1)
+          assert.equal(list[0].name, 'custom')
+          assert.equal(list[0].value, '1')
+          assert.equal(list[0].domain, 'fake-host')
           done()
         })
       })
     })
 
-    it('emits a changed event when a cookie is added or removed', (done) => {
-      const { cookies } = session.fromPartition('cookies-changed')
+    it('emits a changed event when a cookie is added or removed', function (done) {
+      const {cookies} = session.fromPartition('cookies-changed')
 
-      cookies.once('changed', (event, cookie, cause, removed) => {
-        assert.strictEqual(cookie.name, 'foo')
-        assert.strictEqual(cookie.value, 'bar')
-        assert.strictEqual(cause, 'explicit')
-        assert.strictEqual(removed, false)
+      cookies.once('changed', function (event, cookie, cause, removed) {
+        assert.equal(cookie.name, 'foo')
+        assert.equal(cookie.value, 'bar')
+        assert.equal(cause, 'explicit')
+        assert.equal(removed, false)
 
-        cookies.once('changed', (event, cookie, cause, removed) => {
-          assert.strictEqual(cookie.name, 'foo')
-          assert.strictEqual(cookie.value, 'bar')
-          assert.strictEqual(cause, 'explicit')
-          assert.strictEqual(removed, true)
+        cookies.once('changed', function (event, cookie, cause, removed) {
+          assert.equal(cookie.name, 'foo')
+          assert.equal(cookie.value, 'bar')
+          assert.equal(cause, 'explicit')
+          assert.equal(removed, true)
           done()
         })
 
-        cookies.remove(url, 'foo', (error) => {
+        cookies.remove(url, 'foo', function (error) {
           if (error) return done(error)
         })
       })
@@ -192,13 +215,13 @@ describe('session module', () => {
         url: url,
         name: 'foo',
         value: 'bar'
-      }, (error) => {
+      }, function (error) {
         if (error) return done(error)
       })
     })
 
-    describe('ses.cookies.flushStore(callback)', () => {
-      it('flushes the cookies to disk and invokes the callback when done', (done) => {
+    describe('ses.cookies.flushStore(callback)', function () {
+      it('flushes the cookies to disk and invokes the callback when done', function (done) {
         session.defaultSession.cookies.set({
           url: url,
           name: 'foo',
@@ -213,30 +236,30 @@ describe('session module', () => {
     })
   })
 
-  describe('ses.clearStorageData(options)', () => {
+  describe('ses.clearStorageData(options)', function () {
     fixtures = path.resolve(__dirname, 'fixtures')
-    it('clears localstorage data', (done) => {
-      ipcMain.on('count', (event, count) => {
+    it('clears localstorage data', function (done) {
+      ipcMain.on('count', function (event, count) {
         ipcMain.removeAllListeners('count')
-        assert.strictEqual(count, 0)
+        assert.equal(count, 0)
         done()
       })
-      w.loadFile(path.join(fixtures, 'api', 'localstorage.html'))
-      w.webContents.on('did-finish-load', () => {
-        const options = {
+      w.loadURL('file://' + path.join(fixtures, 'api', 'localstorage.html'))
+      w.webContents.on('did-finish-load', function () {
+        var options = {
           origin: 'file://',
           storages: ['localstorage'],
           quotas: ['persistent']
         }
-        w.webContents.session.clearStorageData(options, () => {
+        w.webContents.session.clearStorageData(options, function () {
           w.webContents.send('getcount')
         })
       })
     })
   })
 
-  describe('will-download event', () => {
-    beforeEach(() => {
+  describe('will-download event', function () {
+    beforeEach(function () {
       if (w != null) w.destroy()
       w = new BrowserWindow({
         show: false,
@@ -245,10 +268,10 @@ describe('session module', () => {
       })
     })
 
-    it('can cancel default download behavior', (done) => {
-      const mockFile = Buffer.alloc(1024)
+    it('can cancel default download behavior', function (done) {
+      const mockFile = new Buffer(1024)
       const contentDisposition = 'inline; filename="mockFile.txt"'
-      const downloadServer = http.createServer((req, res) => {
+      const downloadServer = http.createServer(function (req, res) {
         res.writeHead(200, {
           'Content-Length': mockFile.length,
           'Content-Type': 'application/plain',
@@ -258,29 +281,30 @@ describe('session module', () => {
         downloadServer.close()
       })
 
-      downloadServer.listen(0, '127.0.0.1', () => {
+      downloadServer.listen(0, '127.0.0.1', function () {
         const port = downloadServer.address().port
-        const url = `http://127.0.0.1:${port}/`
+        const url = 'http://127.0.0.1:' + port + '/'
 
         ipcRenderer.sendSync('set-download-option', false, true)
         w.loadURL(url)
-        ipcRenderer.once('download-error', (event, downloadUrl, filename, error) => {
-          assert.strictEqual(downloadUrl, url)
-          assert.strictEqual(filename, 'mockFile.txt')
-          assert.strictEqual(error, 'Object has been destroyed')
+        ipcRenderer.once('download-error', function (event, downloadUrl, filename, error) {
+          assert.equal(downloadUrl, url)
+          assert.equal(filename, 'mockFile.txt')
+          assert.equal(error, 'Object has been destroyed')
           done()
         })
       })
     })
   })
 
-  describe('DownloadItem', () => {
-    const mockPDF = Buffer.alloc(1024 * 1024 * 5)
-    const protocolName = 'custom-dl'
-    let contentDisposition = 'inline; filename="mock.pdf"'
-    const downloadFilePath = path.join(fixtures, 'mock.pdf')
-    const downloadServer = http.createServer((req, res) => {
-      if (req.url === '/?testFilename') contentDisposition = 'inline'
+  describe('DownloadItem', function () {
+    var mockPDF = new Buffer(1024 * 1024 * 5)
+    var contentDisposition = 'inline; filename="mock.pdf"'
+    var downloadFilePath = path.join(fixtures, 'mock.pdf')
+    var downloadServer = http.createServer(function (req, res) {
+      if (req.url === '/?testFilename') {
+        contentDisposition = 'inline'
+      }
       res.writeHead(200, {
         'Content-Length': mockPDF.length,
         'Content-Type': 'application/pdf',
@@ -289,85 +313,52 @@ describe('session module', () => {
       res.end(mockPDF)
       downloadServer.close()
     })
-
-    const isPathEqual = (path1, path2) => {
-      return path.relative(path1, path2) === ''
-    }
-    const assertDownload = (event, state, url, mimeType,
-      receivedBytes, totalBytes, disposition,
-      filename, port, savePath, isCustom) => {
-      assert.strictEqual(state, 'completed')
-      assert.strictEqual(filename, 'mock.pdf')
-      assert.ok(path.isAbsolute(savePath))
-      assert.ok(isPathEqual(savePath, path.join(__dirname, 'fixtures', 'mock.pdf')))
-      if (isCustom) {
-        assert.strictEqual(url, `${protocolName}://item`)
-      } else {
-        assert.strictEqual(url, `http://127.0.0.1:${port}/`)
-      }
-      assert.strictEqual(mimeType, 'application/pdf')
-      assert.strictEqual(receivedBytes, mockPDF.length)
-      assert.strictEqual(totalBytes, mockPDF.length)
-      assert.strictEqual(disposition, contentDisposition)
+    var assertDownload = function (event, state, url, mimeType,
+                                   receivedBytes, totalBytes, disposition,
+                                   filename, port, savePath) {
+      assert.equal(state, 'completed')
+      assert.equal(filename, 'mock.pdf')
+      assert.equal(savePath, path.join(__dirname, 'fixtures', 'mock.pdf'))
+      assert.equal(url, 'http://127.0.0.1:' + port + '/')
+      assert.equal(mimeType, 'application/pdf')
+      assert.equal(receivedBytes, mockPDF.length)
+      assert.equal(totalBytes, mockPDF.length)
+      assert.equal(disposition, contentDisposition)
       assert(fs.existsSync(downloadFilePath))
       fs.unlinkSync(downloadFilePath)
     }
 
-    it('can download using WebContents.downloadURL', (done) => {
-      downloadServer.listen(0, '127.0.0.1', () => {
-        const port = downloadServer.address().port
+    it('can download using WebContents.downloadURL', function (done) {
+      downloadServer.listen(0, '127.0.0.1', function () {
+        var port = downloadServer.address().port
         ipcRenderer.sendSync('set-download-option', false, false)
-        w.webContents.downloadURL(`${url}:${port}`)
-        ipcRenderer.once('download-done', (event, state, url,
-          mimeType, receivedBytes,
-          totalBytes, disposition,
-          filename, savePath) => {
+        w.webContents.downloadURL(url + ':' + port)
+        ipcRenderer.once('download-done', function (event, state, url,
+                                                    mimeType, receivedBytes,
+                                                    totalBytes, disposition,
+                                                    filename, savePath) {
           assertDownload(event, state, url, mimeType, receivedBytes,
-            totalBytes, disposition, filename, port, savePath)
+                         totalBytes, disposition, filename, port, savePath)
           done()
         })
       })
     })
 
-    it('can download from custom protocols using WebContents.downloadURL', (done) => {
-      const protocol = session.defaultSession.protocol
-      downloadServer.listen(0, '127.0.0.1', () => {
-        const port = downloadServer.address().port
-        const handler = (ignoredError, callback) => {
-          callback({ url: `${url}:${port}` })
-        }
-        protocol.registerHttpProtocol(protocolName, handler, (error) => {
-          if (error) return done(error)
-          ipcRenderer.sendSync('set-download-option', false, false)
-          w.webContents.downloadURL(`${protocolName}://item`)
-          ipcRenderer.once('download-done', (event, state, url,
-            mimeType, receivedBytes,
-            totalBytes, disposition,
-            filename, savePath) => {
-            assertDownload(event, state, url, mimeType, receivedBytes,
-              totalBytes, disposition, filename, port, savePath,
-              true)
-            done()
-          })
-        })
-      })
-    })
-
-    it('can download using WebView.downloadURL', (done) => {
-      downloadServer.listen(0, '127.0.0.1', () => {
-        const port = downloadServer.address().port
+    it('can download using WebView.downloadURL', function (done) {
+      downloadServer.listen(0, '127.0.0.1', function () {
+        var port = downloadServer.address().port
         ipcRenderer.sendSync('set-download-option', false, false)
         webview = new WebView()
-        webview.src = `file://${fixtures}/api/blank.html`
-        webview.addEventListener('did-finish-load', () => {
-          webview.downloadURL(`${url}:${port}/`)
+        webview.src = 'file://' + fixtures + '/api/blank.html'
+        webview.addEventListener('did-finish-load', function () {
+          webview.downloadURL(url + ':' + port + '/')
         })
-        ipcRenderer.once('download-done', (event, state, url,
-          mimeType, receivedBytes,
-          totalBytes, disposition,
-          filename, savePath) => {
+        ipcRenderer.once('download-done', function (event, state, url,
+                                                    mimeType, receivedBytes,
+                                                    totalBytes, disposition,
+                                                    filename, savePath) {
           assertDownload(event, state, url, mimeType, receivedBytes,
-            totalBytes, disposition, filename, port, savePath)
+                         totalBytes, disposition, filename, port, savePath)
           document.body.removeChild(webview)
           done()
         })
@@ -375,74 +366,71 @@ describe('session module', () => {
       })
     })
 
-    it('can cancel download', (done) => {
-      downloadServer.listen(0, '127.0.0.1', () => {
-        const port = downloadServer.address().port
+    it('can cancel download', function (done) {
+      downloadServer.listen(0, '127.0.0.1', function () {
+        var port = downloadServer.address().port
         ipcRenderer.sendSync('set-download-option', true, false)
-        w.webContents.downloadURL(`${url}:${port}/`)
-        ipcRenderer.once('download-done', (event, state, url,
-          mimeType, receivedBytes,
-          totalBytes, disposition,
-          filename) => {
-          assert.strictEqual(state, 'cancelled')
-          assert.strictEqual(filename, 'mock.pdf')
-          assert.strictEqual(mimeType, 'application/pdf')
-          assert.strictEqual(receivedBytes, 0)
-          assert.strictEqual(totalBytes, mockPDF.length)
-          assert.strictEqual(disposition, contentDisposition)
+        w.webContents.downloadURL(url + ':' + port + '/')
+        ipcRenderer.once('download-done', function (event, state, url,
+                                                    mimeType, receivedBytes,
+                                                    totalBytes, disposition,
+                                                    filename) {
+          assert.equal(state, 'cancelled')
+          assert.equal(filename, 'mock.pdf')
+          assert.equal(mimeType, 'application/pdf')
+          assert.equal(receivedBytes, 0)
+          assert.equal(totalBytes, mockPDF.length)
+          assert.equal(disposition, contentDisposition)
           done()
         })
       })
     })
 
     it('can generate a default filename', function (done) {
-      if (process.env.APPVEYOR === 'True') {
-        // FIXME(alexeykuzmin): Skip the test.
-        // this.skip()
-        return done()
-      }
+      // Somehow this test always fail on appveyor.
+      if (process.env.APPVEYOR === 'True') return done()
 
-      downloadServer.listen(0, '127.0.0.1', () => {
-        const port = downloadServer.address().port
+      downloadServer.listen(0, '127.0.0.1', function () {
+        var port = downloadServer.address().port
         ipcRenderer.sendSync('set-download-option', true, false)
-        w.webContents.downloadURL(`${url}:${port}/?testFilename`)
-        ipcRenderer.once('download-done', (event, state, url,
-          mimeType, receivedBytes,
-          totalBytes, disposition,
-          filename) => {
-          assert.strictEqual(state, 'cancelled')
-          assert.strictEqual(filename, 'download.pdf')
-          assert.strictEqual(mimeType, 'application/pdf')
-          assert.strictEqual(receivedBytes, 0)
-          assert.strictEqual(totalBytes, mockPDF.length)
-          assert.strictEqual(disposition, contentDisposition)
+        w.webContents.downloadURL(url + ':' + port + '/?testFilename')
+        ipcRenderer.once('download-done', function (event, state, url,
+                                                    mimeType, receivedBytes,
+                                                    totalBytes, disposition,
+                                                    filename) {
+          assert.equal(state, 'cancelled')
+          assert.equal(filename, 'download.pdf')
+          assert.equal(mimeType, 'application/pdf')
+          assert.equal(receivedBytes, 0)
+          assert.equal(totalBytes, mockPDF.length)
+          assert.equal(disposition, contentDisposition)
           done()
         })
       })
     })
 
-    describe('when a save path is specified and the URL is unavailable', () => {
-      it('does not display a save dialog and reports the done state as interrupted', (done) => {
+    describe('when a save path is specified and the URL is unavailable', function () {
+      it('does not display a save dialog and reports the done state as interrupted', function (done) {
         ipcRenderer.sendSync('set-download-option', false, false)
         ipcRenderer.once('download-done', (event, state) => {
-          assert.strictEqual(state, 'interrupted')
+          assert.equal(state, 'interrupted')
           done()
         })
-        w.webContents.downloadURL(`file://${path.join(__dirname, 'does-not-exist.txt')}`)
+        w.webContents.downloadURL('file://' + path.join(__dirname, 'does-not-exist.txt'))
       })
     })
   })
 
-  describe('ses.protocol', () => {
+  describe('ses.protocol', function () {
     const partitionName = 'temp'
     const protocolName = 'sp'
     const partitionProtocol = session.fromPartition(partitionName).protocol
     const protocol = session.defaultSession.protocol
-    const handler = (ignoredError, callback) => {
-      callback({ data: 'test', mimeType: 'text/html' })
+    const handler = function (ignoredError, callback) {
+      callback({data: 'test', mimeType: 'text/html'})
     }
 
-    beforeEach((done) => {
+    beforeEach(function (done) {
       if (w != null) w.destroy()
       w = new BrowserWindow({
         show: false,
@@ -450,106 +438,71 @@ describe('session module', () => {
           partition: partitionName
         }
       })
-      partitionProtocol.registerStringProtocol(protocolName, handler, (error) => {
+      partitionProtocol.registerStringProtocol(protocolName, handler, function (error) {
         done(error != null ? error : undefined)
       })
     })
 
-    afterEach((done) => {
+    afterEach(function (done) {
       partitionProtocol.unregisterProtocol(protocolName, () => done())
     })
 
-    it('does not affect defaultSession', (done) => {
-      protocol.isProtocolHandled(protocolName, (result) => {
-        assert.strictEqual(result, false)
-        partitionProtocol.isProtocolHandled(protocolName, (result) => {
-          assert.strictEqual(result, true)
+    it('does not affect defaultSession', function (done) {
+      protocol.isProtocolHandled(protocolName, function (result) {
+        assert.equal(result, false)
+        partitionProtocol.isProtocolHandled(protocolName, function (result) {
+          assert.equal(result, true)
           done()
         })
       })
     })
 
-    xit('handles requests from partition', (done) => {
-      w.webContents.on('did-finish-load', () => done())
+    xit('handles requests from partition', function (done) {
+      w.webContents.on('did-finish-load', function () {
+        done()
+      })
       w.loadURL(`${protocolName}://fake-host`)
     })
   })
 
-  describe('ses.setProxy(options, callback)', () => {
-    let server = null
-    let customSession = null
-
-    beforeEach(() => {
-      customSession = session.fromPartition('proxyconfig')
-    })
-
-    afterEach(() => {
-      if (server) {
-        server.close()
+  describe('ses.setProxy(options, callback)', function () {
+    it('allows configuring proxy settings', function (done) {
+      const config = {
+        proxyRules: 'http=myproxy:80'
       }
-      if (customSession) {
-        customSession.destroy()
-      }
-    })
-
-    it('allows configuring proxy settings', (done) => {
-      const config = { proxyRules: 'http=myproxy:80' }
-      customSession.setProxy(config, () => {
-        customSession.resolveProxy('http://localhost', (proxy) => {
-          assert.strictEqual(proxy, 'PROXY myproxy:80')
+      session.defaultSession.setProxy(config, function () {
+        session.defaultSession.resolveProxy('http://localhost', function (proxy) {
+          assert.equal(proxy, 'PROXY myproxy:80')
           done()
         })
       })
     })
 
-    it('allows configuring proxy settings with pacScript', (done) => {
-      server = http.createServer((req, res) => {
-        const pac = `
-          function FindProxyForURL(url, host) {
-            return "PROXY myproxy:8132";
-          }
-        `
-        res.writeHead(200, {
-          'Content-Type': 'application/x-ns-proxy-autoconfig'
-        })
-        res.end(pac)
-      })
-      server.listen(0, '127.0.0.1', () => {
-        const config = { pacScript: `http://127.0.0.1:${server.address().port}` }
-        customSession.setProxy(config, () => {
-          customSession.resolveProxy('http://localhost', (proxy) => {
-            assert.strictEqual(proxy, 'PROXY myproxy:8132')
-            done()
-          })
-        })
-      })
-    })
-
-    it('allows bypassing proxy settings', (done) => {
+    it('allows bypassing proxy settings', function (done) {
       const config = {
         proxyRules: 'http=myproxy:80',
         proxyBypassRules: '<local>'
       }
-      customSession.setProxy(config, () => {
-        customSession.resolveProxy('http://localhost', (proxy) => {
-          assert.strictEqual(proxy, 'DIRECT')
+      session.defaultSession.setProxy(config, function () {
+        session.defaultSession.resolveProxy('http://localhost', function (proxy) {
+          assert.equal(proxy, 'DIRECT')
           done()
         })
       })
     })
   })
 
-  describe('ses.getBlobData(identifier, callback)', () => {
-    it('returns blob data for uuid', (done) => {
+  describe('ses.getBlobData(identifier, callback)', function () {
+    it('returns blob data for uuid', function (done) {
       const scheme = 'temp'
       const protocol = session.defaultSession.protocol
-      const url = `${scheme}://host`
-      before(() => {
+      const url = scheme + '://host'
+      before(function () {
         if (w != null) w.destroy()
-        w = new BrowserWindow({ show: false })
+        w = new BrowserWindow({show: false})
       })
 
-      after((done) => {
+      after(function (done) {
         protocol.unregisterProtocol(scheme, () => {
           closeWindow(w).then(() => {
             w = null
@@ -572,30 +525,30 @@ describe('session module', () => {
                        </script>
                        </html>`
 
-      protocol.registerStringProtocol(scheme, (request, callback) => {
+      protocol.registerStringProtocol(scheme, function (request, callback) {
         if (request.method === 'GET') {
-          callback({ data: content, mimeType: 'text/html' })
+          callback({data: content, mimeType: 'text/html'})
         } else if (request.method === 'POST') {
-          const uuid = request.uploadData[1].blobUUID
+          let uuid = request.uploadData[1].blobUUID
           assert(uuid)
-          session.defaultSession.getBlobData(uuid, (result) => {
-            assert.strictEqual(result.toString(), postData)
+          session.defaultSession.getBlobData(uuid, function (result) {
+            assert.equal(result.toString(), postData)
             done()
           })
         }
-      }, (error) => {
+      }, function (error) {
         if (error) return done(error)
         w.loadURL(url)
       })
     })
   })
 
-  describe('ses.setCertificateVerifyProc(callback)', () => {
-    let server = null
+  describe('ses.setCertificateVerifyProc(callback)', function () {
+    var server = null
 
-    beforeEach((done) => {
-      const certPath = path.join(__dirname, 'fixtures', 'certificates')
-      const options = {
+    beforeEach(function (done) {
+      var certPath = path.join(__dirname, 'fixtures', 'certificates')
+      var options = {
         key: fs.readFileSync(path.join(certPath, 'server.key')),
         cert: fs.readFileSync(path.join(certPath, 'server.pem')),
         ca: [
@@ -606,59 +559,87 @@ describe('session module', () => {
         rejectUnauthorized: false
       }
 
-      server = https.createServer(options, (req, res) => {
+      server = https.createServer(options, function (req, res) {
         res.writeHead(200)
         res.end('<title>hello</title>')
       })
       server.listen(0, '127.0.0.1', done)
     })
 
-    afterEach(() => {
+    afterEach(function () {
       session.defaultSession.setCertificateVerifyProc(null)
       server.close()
     })
 
-    it('accepts the request when the callback is called with 0', (done) => {
-      session.defaultSession.setCertificateVerifyProc(({ hostname, certificate, verificationResult, errorCode }, callback) => {
+    it('accepts the request when the callback is called with 0', function (done) {
+      session.defaultSession.setCertificateVerifyProc(function ({hostname, certificate, verificationResult}, callback) {
         assert(['net::ERR_CERT_AUTHORITY_INVALID', 'net::ERR_CERT_COMMON_NAME_INVALID'].includes(verificationResult), verificationResult)
-        assert([-202, -200].includes(errorCode), errorCode)
         callback(0)
       })
 
-      w.webContents.once('did-finish-load', () => {
-        assert.strictEqual(w.webContents.getTitle(), 'hello')
+      w.webContents.once('did-finish-load', function () {
+        assert.equal(w.webContents.getTitle(), 'hello')
         done()
       })
       w.loadURL(`https://127.0.0.1:${server.address().port}`)
     })
 
-    it('rejects the request when the callback is called with -2', (done) => {
-      session.defaultSession.setCertificateVerifyProc(({ hostname, certificate, verificationResult }, callback) => {
-        assert.strictEqual(hostname, '127.0.0.1')
-        assert.strictEqual(certificate.issuerName, 'Intermediate CA')
-        assert.strictEqual(certificate.subjectName, 'localhost')
-        assert.strictEqual(certificate.issuer.commonName, 'Intermediate CA')
-        assert.strictEqual(certificate.subject.commonName, 'localhost')
-        assert.strictEqual(certificate.issuerCert.issuer.commonName, 'Root CA')
-        assert.strictEqual(certificate.issuerCert.subject.commonName, 'Intermediate CA')
-        assert.strictEqual(certificate.issuerCert.issuerCert.issuer.commonName, 'Root CA')
-        assert.strictEqual(certificate.issuerCert.issuerCert.subject.commonName, 'Root CA')
-        assert.strictEqual(certificate.issuerCert.issuerCert.issuerCert, undefined)
+    describe('deprecated function signature', function () {
+      it('supports accepting the request', function (done) {
+        session.defaultSession.setCertificateVerifyProc(function (hostname, certificate, callback) {
+          assert.equal(hostname, '127.0.0.1')
+          callback(true)
+        })
+
+        w.webContents.once('did-finish-load', function () {
+          assert.equal(w.webContents.getTitle(), 'hello')
+          done()
+        })
+        w.loadURL(`https://127.0.0.1:${server.address().port}`)
+      })
+
+      it('supports rejecting the request', function (done) {
+        session.defaultSession.setCertificateVerifyProc(function (hostname, certificate, callback) {
+          assert.equal(hostname, '127.0.0.1')
+          callback(false)
+        })
+
+        var url = `https://127.0.0.1:${server.address().port}`
+        w.webContents.once('did-finish-load', function () {
+          assert.equal(w.webContents.getTitle(), url)
+          done()
+        })
+        w.loadURL(url)
+      })
+    })
+
+    it('rejects the request when the callback is called with -2', function (done) {
+      session.defaultSession.setCertificateVerifyProc(function ({hostname, certificate, verificationResult}, callback) {
+        assert.equal(hostname, '127.0.0.1')
+        assert.equal(certificate.issuerName, 'Intermediate CA')
+        assert.equal(certificate.subjectName, 'localhost')
+        assert.equal(certificate.issuer.commonName, 'Intermediate CA')
+        assert.equal(certificate.subject.commonName, 'localhost')
+        assert.equal(certificate.issuerCert.issuer.commonName, 'Root CA')
+        assert.equal(certificate.issuerCert.subject.commonName, 'Intermediate CA')
+        assert.equal(certificate.issuerCert.issuerCert.issuer.commonName, 'Root CA')
+        assert.equal(certificate.issuerCert.issuerCert.subject.commonName, 'Root CA')
+        assert.equal(certificate.issuerCert.issuerCert.issuerCert, undefined)
         assert(['net::ERR_CERT_AUTHORITY_INVALID', 'net::ERR_CERT_COMMON_NAME_INVALID'].includes(verificationResult), verificationResult)
         callback(-2)
       })
 
-      const url = `https://127.0.0.1:${server.address().port}`
-      w.webContents.once('did-finish-load', () => {
-        assert.strictEqual(w.webContents.getTitle(), url)
+      var url = `https://127.0.0.1:${server.address().port}`
+      w.webContents.once('did-finish-load', function () {
+        assert.equal(w.webContents.getTitle(), url)
         done()
       })
       w.loadURL(url)
     })
   })
 
-  describe('ses.createInterruptedDownload(options)', () => {
-    it('can create an interrupted download item', (done) => {
+  describe('ses.createInterruptedDownload(options)', function () {
+    it('can create an interrupted download item', function (done) {
       ipcRenderer.sendSync('set-download-option', true, false)
       const filePath = path.join(__dirname, 'fixtures', 'mock.pdf')
       const options = {
@@ -669,36 +650,40 @@ describe('session module', () => {
         length: 5242880
       }
       w.webContents.session.createInterruptedDownload(options)
-      ipcRenderer.once('download-created', (event, state, urlChain,
-        mimeType, receivedBytes,
-        totalBytes, filename,
-        savePath) => {
-        assert.strictEqual(state, 'interrupted')
-        assert.deepStrictEqual(urlChain, ['http://127.0.0.1/'])
-        assert.strictEqual(mimeType, 'application/pdf')
-        assert.strictEqual(receivedBytes, 0)
-        assert.strictEqual(totalBytes, 5242880)
-        assert.strictEqual(savePath, filePath)
+      ipcRenderer.once('download-created', function (event, state, urlChain,
+                                                     mimeType, receivedBytes,
+                                                     totalBytes, filename,
+                                                     savePath) {
+        assert.equal(state, 'interrupted')
+        assert.deepEqual(urlChain, ['http://127.0.0.1/'])
+        assert.equal(mimeType, 'application/pdf')
+        assert.equal(receivedBytes, 0)
+        assert.equal(totalBytes, 5242880)
+        assert.equal(savePath, filePath)
         done()
       })
     })
 
-    it('can be resumed', (done) => {
+    it('can be resumed', function (done) {
       const fixtures = path.join(__dirname, 'fixtures')
       const downloadFilePath = path.join(fixtures, 'logo.png')
-      const rangeServer = http.createServer((req, res) => {
-        const options = { root: fixtures }
+      const rangeServer = http.createServer(function (req, res) {
+        let options = {
+          root: fixtures
+        }
         send(req, req.url, options)
-          .on('error', (error) => { done(error) }).pipe(res)
+        .on('error', function (error) {
+          done(error)
+        }).pipe(res)
       })
       ipcRenderer.sendSync('set-download-option', true, false, downloadFilePath)
-      rangeServer.listen(0, '127.0.0.1', () => {
+      rangeServer.listen(0, '127.0.0.1', function () {
         const port = rangeServer.address().port
         const downloadUrl = `http://127.0.0.1:${port}/assets/logo.png`
-        const callback = (event, state, url, mimeType,
-          receivedBytes, totalBytes, disposition,
-          filename, savePath, urlChain,
-          lastModifiedTime, eTag) => {
+        const callback = function (event, state, url, mimeType,
+                                   receivedBytes, totalBytes, disposition,
+                                   filename, savePath, urlChain,
+                                   lastModifiedTime, eTag) {
           if (state === 'cancelled') {
             const options = {
               path: savePath,
@@ -712,13 +697,13 @@ describe('session module', () => {
             ipcRenderer.sendSync('set-download-option', false, false, downloadFilePath)
             w.webContents.session.createInterruptedDownload(options)
           } else {
-            assert.strictEqual(state, 'completed')
-            assert.strictEqual(filename, 'logo.png')
-            assert.strictEqual(savePath, downloadFilePath)
-            assert.strictEqual(url, downloadUrl)
-            assert.strictEqual(mimeType, 'image/png')
-            assert.strictEqual(receivedBytes, 14022)
-            assert.strictEqual(totalBytes, 14022)
+            assert.equal(state, 'completed')
+            assert.equal(filename, 'logo.png')
+            assert.equal(savePath, downloadFilePath)
+            assert.equal(url, downloadUrl)
+            assert.equal(mimeType, 'image/png')
+            assert.equal(receivedBytes, 14022)
+            assert.equal(totalBytes, 14022)
             assert(fs.existsSync(downloadFilePath))
             fs.unlinkSync(downloadFilePath)
             rangeServer.close()
@@ -732,11 +717,11 @@ describe('session module', () => {
     })
   })
 
-  describe('ses.clearAuthCache(options[, callback])', () => {
-    it('can clear http auth info from cache', (done) => {
+  describe('ses.clearAuthCache(options[, callback])', function () {
+    it('can clear http auth info from cache', function (done) {
       const ses = session.fromPartition('auth-cache')
-      const server = http.createServer((req, res) => {
-        const credentials = auth(req)
+      const server = http.createServer(function (req, res) {
+        var credentials = auth(req)
         if (!credentials || credentials.name !== 'test' || credentials.pass !== 'test') {
           res.statusCode = 401
           res.setHeader('WWW-Authenticate', 'Basic realm="Restricted"')
@@ -745,7 +730,7 @@ describe('session module', () => {
           res.end('authenticated')
         }
       })
-      server.listen(0, '127.0.0.1', () => {
+      server.listen(0, '127.0.0.1', function () {
         const port = server.address().port
         function issueLoginRequest (attempt = 1) {
           if (attempt > 2) {
@@ -756,25 +741,27 @@ describe('session module', () => {
             url: `http://127.0.0.1:${port}`,
             session: ses
           })
-          request.on('login', (info, callback) => {
-            attempt += 1
-            assert.strictEqual(info.scheme, 'basic')
-            assert.strictEqual(info.realm, 'Restricted')
+          request.on('login', function (info, callback) {
+            attempt++
+            assert.equal(info.scheme, 'basic')
+            assert.equal(info.realm, 'Restricted')
             callback('test', 'test')
           })
-          request.on('response', (response) => {
+          request.on('response', function (response) {
             let data = ''
             response.pause()
-            response.on('data', (chunk) => {
+            response.on('data', function (chunk) {
               data += chunk
             })
-            response.on('end', () => {
-              assert.strictEqual(data, 'authenticated')
-              ses.clearAuthCache({ type: 'password' }, () => {
+            response.on('end', function () {
+              assert.equal(data, 'authenticated')
+              ses.clearAuthCache({type: 'password'}, function () {
                 issueLoginRequest(attempt)
               })
             })
-            response.on('error', (error) => { done(error) })
+            response.on('error', function (error) {
+              done(error)
+            })
             response.resume()
           })
           // Internal api to bypass cache for testing.
@@ -794,12 +781,12 @@ describe('session module', () => {
       })
 
       webview = new WebView()
-      webview.addEventListener('ipc-message', (e) => {
-        assert.strictEqual(e.channel, 'message')
-        assert.deepStrictEqual(e.args, ['SecurityError'])
+      webview.addEventListener('ipc-message', function (e) {
+        assert.equal(e.channel, 'message')
+        assert.deepEqual(e.args, ['SecurityError'])
         done()
       })
-      webview.src = `file://${fixtures}/pages/permissions/midi-sysex.html`
+      webview.src = 'file://' + fixtures + '/pages/permissions/midi-sysex.html'
       webview.partition = 'permissionTest'
       webview.setAttribute('nodeintegration', 'on')
       document.body.appendChild(webview)

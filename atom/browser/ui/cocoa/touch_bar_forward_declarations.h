@@ -14,18 +14,18 @@
 #pragma clang assume_nonnull begin
 
 @class NSTouchBar, NSTouchBarItem;
-@class NSScrubber, NSScrubberItemView, NSScrubberArrangedView,
-    NSScrubberTextItemView, NSScrubberImageItemView, NSScrubberSelectionStyle;
-@protocol NSTouchBarDelegate
-, NSScrubberDelegate, NSScrubberDataSource, NSScrubberFlowLayoutDelegate,
-    NSScrubberFlowLayout;
+@class NSScrubber, NSScrubberItemView, NSScrubberArrangedView, NSScrubberTextItemView, NSScrubberImageItemView, NSScrubberSelectionStyle;
+@protocol NSTouchBarDelegate, NSScrubberDelegate, NSScrubberDataSource;
 
 typedef float NSTouchBarItemPriority;
 static const NSTouchBarItemPriority NSTouchBarItemPriorityHigh = 1000;
 static const NSTouchBarItemPriority NSTouchBarItemPriorityNormal = 0;
 static const NSTouchBarItemPriority NSTouchBarItemPriorityLow = -1000;
 
-enum NSScrubberMode { NSScrubberModeFixed = 0, NSScrubberModeFree };
+enum NSScrubberMode {
+  NSScrubberModeFixed = 0,
+  NSScrubberModeFree
+};
 
 typedef NSString* NSTouchBarItemIdentifier;
 typedef NSString* NSTouchBarCustomizationIdentifier;
@@ -42,7 +42,7 @@ static const NSTouchBarItemIdentifier NSTouchBarItemIdentifierFlexibleSpace =
 static const NSTouchBarItemIdentifier NSTouchBarItemIdentifierOtherItemsProxy =
     @"NSTouchBarItemIdentifierOtherItemsProxy";
 
-@interface NSTouchBar : NSObject <NSCoding>
+@interface NSTouchBar : NSObject<NSCoding>
 
 - (instancetype)init NS_DESIGNATED_INITIALIZER;
 - (nullable instancetype)initWithCoder:(NSCoder*)aDecoder
@@ -55,8 +55,7 @@ static const NSTouchBarItemIdentifier NSTouchBarItemIdentifierOtherItemsProxy =
 @property(copy) NSArray* defaultItemIdentifiers;
 @property(copy, readonly) NSArray* itemIdentifiers;
 @property(copy, nullable) NSTouchBarItemIdentifier principalItemIdentifier;
-@property(copy, nullable)
-    NSTouchBarItemIdentifier escapeKeyReplacementItemIdentifier;
+@property(copy, nullable) NSTouchBarItemIdentifier escapeKeyReplacementItemIdentifier;
 @property(copy) NSSet* templateItems;
 @property(nullable, weak) id<NSTouchBarDelegate> delegate;
 
@@ -67,7 +66,7 @@ static const NSTouchBarItemIdentifier NSTouchBarItemIdentifierOtherItemsProxy =
 
 @end
 
-@interface NSTouchBarItem : NSObject <NSCoding>
+@interface NSTouchBarItem : NSObject<NSCoding>
 
 - (instancetype)initWithIdentifier:(NSTouchBarItemIdentifier)identifier
     NS_DESIGNATED_INITIALIZER;
@@ -150,15 +149,10 @@ static const NSTouchBarItemIdentifier NSTouchBarItemIdentifierOtherItemsProxy =
 
 @end
 
-@interface NSScrubberFlowLayout : NSObject
-@end
+@interface NSScrubberSelectionStyle : NSObject<NSCoding>
 
-@interface NSScrubberSelectionStyle : NSObject <NSCoding>
-
-@property(class, strong, readonly)
-    NSScrubberSelectionStyle* outlineOverlayStyle;
-@property(class, strong, readonly)
-    NSScrubberSelectionStyle* roundedBackgroundStyle;
+@property(class, strong, readonly) NSScrubberSelectionStyle* outlineOverlayStyle;
+@property(class, strong, readonly) NSScrubberSelectionStyle* roundedBackgroundStyle;
 
 @end
 
@@ -212,7 +206,7 @@ static const NSTouchBarItemIdentifier NSTouchBarItemIdentifierOtherItemsProxy =
 
 @end
 
-@protocol NSTouchBarDelegate <NSObject>
+@protocol NSTouchBarDelegate<NSObject>
 
 @optional
 - (nullable NSTouchBarItem*)touchBar:(NSTouchBar*)touchBar
@@ -220,28 +214,18 @@ static const NSTouchBarItemIdentifier NSTouchBarItemIdentifierOtherItemsProxy =
 
 @end
 
-@protocol NSScrubberDelegate <NSObject>
+@protocol NSScrubberDelegate<NSObject>
 
-- (void)scrubber:(NSScrubber*)scrubber
-    didHighlightItemAtIndex:(NSInteger)highlightedIndex;
-- (void)scrubber:(NSScrubber*)scrubber
-    didSelectItemAtIndex:(NSInteger)selectedIndex;
+- (void)scrubber:(NSScrubber*)scrubber didHighlightItemAtIndex:(NSInteger)highlightedIndex;
+- (void)scrubber:(NSScrubber*)scrubber didSelectItemAtIndex:(NSInteger)selectedIndex;
 
 @end
 
-@protocol NSScrubberDataSource <NSObject>
+@protocol NSScrubberDataSource<NSObject>
 
 - (NSInteger)numberOfItemsForScrubber:(NSScrubber*)scrubber;
 - (__kindof NSScrubberItemView*)scrubber:(NSScrubber*)scrubber
-                      viewForItemAtIndex:(NSInteger)index;
-
-@end
-
-@protocol NSScrubberFlowLayoutDelegate <NSObject>
-
-- (NSSize)scrubber:(NSScrubber*)scrubber
-                layout:(NSScrubberFlowLayout*)layout
-    sizeForItemAtIndex:(NSInteger)itemIndex;
+                       viewForItemAtIndex:(NSInteger)index;
 
 @end
 
@@ -259,7 +243,7 @@ static const NSTouchBarItemIdentifier NSTouchBarItemIdentifierOtherItemsProxy =
 @class NSTouchBarItem;
 
 @interface NSWindow (TouchBarSDK)
-@property(strong, readonly) NSTouchBar* touchBar API_AVAILABLE(macosx(10.12.2));
+@property(strong, readonly) NSTouchBar* touchBar;
 @end
 
 #endif  // MAC_OS_X_VERSION_10_12_1

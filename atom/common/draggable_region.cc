@@ -6,6 +6,8 @@
 
 namespace atom {
 
-DraggableRegion::DraggableRegion() : draggable(false) {}
+DraggableRegion::DraggableRegion()
+    : draggable(false) {
+}
 
 }  // namespace atom

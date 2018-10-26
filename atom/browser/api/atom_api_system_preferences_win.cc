@@ -2,9 +2,6 @@
 // Use of this source code is governed by the MIT license that can be
 // found in the LICENSE file.
 
-#include <dwmapi.h>
-#include <iomanip>
-
 #include "atom/browser/api/atom_api_system_preferences.h"
 
 #include "atom/common/color_util.h"
@@ -18,7 +15,7 @@ namespace atom {
 namespace {
 
 const wchar_t kSystemPreferencesWindowClass[] =
-    L"Electron_SystemPreferencesHostWindow";
+  L"Electron_SystemPreferencesHostWindow";
 
 }  // namespace
 
@@ -29,17 +26,17 @@ bool SystemPreferences::IsAeroGlassEnabled() {
 }
 
 std::string hexColorDWORDToRGBA(DWORD color) {
-  DWORD rgba = color << 8 | color >> 24;
   std::ostringstream stream;
-  stream << std::hex << std::setw(8) << std::setfill('0') << rgba;
-  return stream.str();
+  stream << std::hex << color;
+  std::string hexColor = stream.str();
+  return hexColor.substr(2) + hexColor.substr(0, 2);
 }
 
 std::string SystemPreferences::GetAccentColor() {
   DWORD color = 0;
   BOOL opaque = FALSE;
 
-  if (FAILED(DwmGetColorizationColor(&color, &opaque))) {
+  if (FAILED(dwmGetColorizationColor(&color, &opaque))) {
     return "";
   }
 
@@ -131,8 +128,9 @@ void SystemPreferences::InitializeWindow() {
   WNDCLASSEX window_class;
   base::win::InitializeWindowClass(
       kSystemPreferencesWindowClass,
-      &base::win::WrappedWindowProc<SystemPreferences::WndProcStatic>, 0, 0, 0,
-      NULL, NULL, NULL, NULL, NULL, &window_class);
+      &base::win::WrappedWindowProc<SystemPreferences::WndProcStatic>,
+      0, 0, 0, NULL, NULL, NULL, NULL, NULL,
+      &window_class);
   instance_ = window_class.hInstance;
   atom_ = RegisterClassEx(&window_class);
 
@@ -140,16 +138,16 @@ void SystemPreferences::InitializeWindow() {
   // colorization color.  Create a hidden WS_POPUP window instead of an
   // HWND_MESSAGE window, because only top-level windows such as popups can
   // receive broadcast messages like "WM_DWMCOLORIZATIONCOLORCHANGED".
-  window_ = CreateWindow(MAKEINTATOM(atom_), 0, WS_POPUP, 0, 0, 0, 0, 0, 0,
-                         instance_, 0);
+  window_ = CreateWindow(MAKEINTATOM(atom_),
+                         0, WS_POPUP, 0, 0, 0, 0, 0, 0, instance_, 0);
   gfx::CheckWindowCreated(window_);
   gfx::SetWindowUserData(window_, this);
 }
 
 LRESULT CALLBACK SystemPreferences::WndProcStatic(HWND hwnd,
-                                                  UINT message,
-                                                  WPARAM wparam,
-                                                  LPARAM lparam) {
+                                              UINT message,
+                                              WPARAM wparam,
+                                              LPARAM lparam) {
   SystemPreferences* msg_wnd = reinterpret_cast<SystemPreferences*>(
       GetWindowLongPtr(hwnd, GWLP_USERDATA));
   if (msg_wnd)
@@ -159,11 +157,11 @@ LRESULT CALLBACK SystemPreferences::WndProcStatic(HWND hwnd,
 }
 
 LRESULT CALLBACK SystemPreferences::WndProc(HWND hwnd,
-                                            UINT message,
-                                            WPARAM wparam,
-                                            LPARAM lparam) {
+                                        UINT message,
+                                        WPARAM wparam,
+                                        LPARAM lparam) {
   if (message == WM_DWMCOLORIZATIONCOLORCHANGED) {
-    DWORD new_color = (DWORD)wparam;
+    DWORD new_color = (DWORD) wparam;
     std::string new_color_string = hexColorDWORDToRGBA(new_color);
     if (new_color_string != current_color_) {
       Emit("accent-color-changed", hexColorDWORDToRGBA(new_color));

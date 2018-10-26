@@ -24,7 +24,8 @@ namespace atom {
 namespace {
 
 // See comment in |PreEarlyInitialization()|, where sigaction is called.
-void SIGCHLDHandler(int signal) {}
+void SIGCHLDHandler(int signal) {
+}
 
 // The OSX fork() implementation can crash in the child process before
 // fork() returns.  In that case, the shutdown pipe will still be
@@ -118,9 +119,11 @@ void ShutdownDetector::ThreadMain() {
 
   int signal;
   size_t bytes_read = 0;
+  ssize_t ret;
   do {
-    ssize_t ret = HANDLE_EINTR(
-        read(shutdown_fd_, reinterpret_cast<char*>(&signal) + bytes_read,
+    ret = HANDLE_EINTR(
+        read(shutdown_fd_,
+             reinterpret_cast<char*>(&signal) + bytes_read,
              sizeof(signal) - bytes_read));
     if (ret < 0) {
       NOTREACHED() << "Unexpected error: " << strerror(errno);

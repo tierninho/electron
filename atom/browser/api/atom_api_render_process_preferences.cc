@@ -21,8 +21,8 @@ namespace {
 
 bool IsWebContents(v8::Isolate* isolate, content::RenderProcessHost* process) {
   content::WebContents* web_contents =
-      static_cast<AtomBrowserClient*>(AtomBrowserClient::Get())
-          ->GetWebContentsFromProcessID(process->GetID());
+      static_cast<AtomBrowserClient*>(AtomBrowserClient::Get())->
+          GetWebContentsFromProcessID(process->GetID());
   if (!web_contents)
     return false;
 
@@ -41,7 +41,8 @@ RenderProcessPreferences::RenderProcessPreferences(
   Init(isolate);
 }
 
-RenderProcessPreferences::~RenderProcessPreferences() {}
+RenderProcessPreferences::~RenderProcessPreferences() {
+}
 
 int RenderProcessPreferences::AddEntry(const base::DictionaryValue& entry) {
   return preferences_.AddEntry(entry);
@@ -53,8 +54,7 @@ void RenderProcessPreferences::RemoveEntry(int id) {
 
 // static
 void RenderProcessPreferences::BuildPrototype(
-    v8::Isolate* isolate,
-    v8::Local<v8::FunctionTemplate> prototype) {
+    v8::Isolate* isolate, v8::Local<v8::FunctionTemplate> prototype) {
   prototype->SetClassName(
       mate::StringToV8(isolate, "RenderProcessPreferences"));
   mate::ObjectTemplateBuilder(isolate, prototype->PrototypeTemplate())
@@ -65,9 +65,10 @@ void RenderProcessPreferences::BuildPrototype(
 // static
 mate::Handle<RenderProcessPreferences>
 RenderProcessPreferences::ForAllWebContents(v8::Isolate* isolate) {
-  return mate::CreateHandle(isolate,
-                            new RenderProcessPreferences(
-                                isolate, base::Bind(&IsWebContents, isolate)));
+  return mate::CreateHandle(
+      isolate,
+      new RenderProcessPreferences(isolate,
+                                   base::Bind(&IsWebContents, isolate)));
 }
 
 }  // namespace api
@@ -76,10 +77,8 @@ RenderProcessPreferences::ForAllWebContents(v8::Isolate* isolate) {
 
 namespace {
 
-void Initialize(v8::Local<v8::Object> exports,
-                v8::Local<v8::Value> unused,
-                v8::Local<v8::Context> context,
-                void* priv) {
+void Initialize(v8::Local<v8::Object> exports, v8::Local<v8::Value> unused,
+                v8::Local<v8::Context> context, void* priv) {
   mate::Dictionary dict(context->GetIsolate(), exports);
   dict.SetMethod("forAllWebContents",
                  &atom::api::RenderProcessPreferences::ForAllWebContents);
@@ -87,5 +86,5 @@ void Initialize(v8::Local<v8::Object> exports,
 
 }  // namespace
 
-NODE_BUILTIN_MODULE_CONTEXT_AWARE(atom_browser_render_process_preferences,
+NODE_MODULE_CONTEXT_AWARE_BUILTIN(atom_browser_render_process_preferences,
                                   Initialize)

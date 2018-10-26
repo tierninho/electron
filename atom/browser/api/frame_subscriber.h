@@ -5,42 +5,46 @@
 #ifndef ATOM_BROWSER_API_FRAME_SUBSCRIBER_H_
 #define ATOM_BROWSER_API_FRAME_SUBSCRIBER_H_
 
-#include "content/public/browser/web_contents.h"
-
 #include "base/callback.h"
 #include "base/memory/weak_ptr.h"
-#include "components/viz/common/frame_sinks/copy_output_result.h"
-#include "content/public/browser/web_contents_observer.h"
-#include "ui/gfx/image/image.h"
+#include "content/public/browser/readback_types.h"
+#include "content/public/browser/render_widget_host_view.h"
+#include "content/public/browser/render_widget_host_view_frame_subscriber.h"
+#include "third_party/skia/include/core/SkBitmap.h"
+#include "ui/gfx/geometry/size.h"
 #include "v8/include/v8.h"
 
 namespace atom {
 
 namespace api {
 
-class WebContents;
-
-class FrameSubscriber : public content::WebContentsObserver {
+class FrameSubscriber : public content::RenderWidgetHostViewFrameSubscriber {
  public:
   using FrameCaptureCallback =
       base::Callback<void(v8::Local<v8::Value>, v8::Local<v8::Value>)>;
 
   FrameSubscriber(v8::Isolate* isolate,
-                  content::WebContents* web_contents,
+                  content::RenderWidgetHostView* view,
                   const FrameCaptureCallback& callback,
                   bool only_dirty);
-  ~FrameSubscriber() override;
+
+  bool ShouldCaptureFrame(const gfx::Rect& damage_rect,
+                          base::TimeTicks present_time,
+                          scoped_refptr<media::VideoFrame>* storage,
+                          DeliverFrameCallback* callback) override;
 
  private:
-  gfx::Rect GetDamageRect();
-  void DidReceiveCompositorFrame() override;
-  void Done(const gfx::Rect& damage, const SkBitmap& frame);
+  void OnFrameDelivered(const FrameCaptureCallback& callback,
+                        const gfx::Rect& damage_rect,
+                        const SkBitmap& bitmap,
+                        content::ReadbackResponse response);
 
   v8::Isolate* isolate_;
+  content::RenderWidgetHostView* view_;
   FrameCaptureCallback callback_;
   bool only_dirty_;
 
-  base::WeakPtrFactory<FrameSubscriber> weak_ptr_factory_;
+  base::WeakPtrFactory<FrameSubscriber> weak_factory_;
 
   DISALLOW_COPY_AND_ASSIGN(FrameSubscriber);
 };

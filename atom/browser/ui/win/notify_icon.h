@@ -9,7 +9,6 @@
 
 #include <shellapi.h>
 
-#include <memory>
 #include <string>
 
 #include "atom/browser/ui/tray_icon.h"
@@ -21,10 +20,6 @@ namespace gfx {
 class Point;
 }
 
-namespace views {
-class MenuRunner;
-}
-
 namespace atom {
 
 class NotifyIconHost;
@@ -33,7 +28,7 @@ class NotifyIcon : public TrayIcon {
  public:
   // Constructor which provides this icon's unique ID and messaging window.
   NotifyIcon(NotifyIconHost* host, UINT id, HWND window, UINT message);
-  ~NotifyIcon() override;
+  virtual ~NotifyIcon();
 
   // Handles a click event from the user - if |left_button_click| is true and
   // there is a registered observer, passes the click event to the observer,
@@ -80,10 +75,7 @@ class NotifyIcon : public TrayIcon {
   base::win::ScopedHICON icon_;
 
   // The context menu.
-  AtomMenuModel* menu_model_ = nullptr;
-
-  // Context menu associated with this icon (if any).
-  std::unique_ptr<views::MenuRunner> menu_runner_;
+  AtomMenuModel* menu_model_;
 
   DISALLOW_COPY_AND_ASSIGN(NotifyIcon);
 };

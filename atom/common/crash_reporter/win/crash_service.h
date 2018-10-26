@@ -11,17 +11,13 @@
 #include "base/macros.h"
 #include "base/synchronization/lock.h"
 
-#if defined(OS_WIN)
-#include <windows.h>
-#endif  // defined(OS_WIN)
-
 namespace google_breakpad {
 
 class CrashReportSender;
 class CrashGenerationServer;
 class ClientInfo;
 
-}  // namespace google_breakpad
+}
 
 namespace breakpad {
 
@@ -74,11 +70,17 @@ class CrashService {
   static const char kReporterURL[];
 
   // Returns number of crash dumps handled.
-  int requests_handled() const { return requests_handled_; }
+  int requests_handled() const {
+    return requests_handled_;
+  }
   // Returns number of crash clients registered.
-  int clients_connected() const { return clients_connected_; }
+  int clients_connected() const {
+    return clients_connected_;
+  }
   // Returns number of crash clients terminated.
-  int clients_terminated() const { return clients_terminated_; }
+  int clients_terminated() const {
+    return clients_terminated_;
+  }
 
   // Starts the processing loop. This function does not return unless the
   // user is logging off or the user closes the crash service window. The
@@ -106,8 +108,8 @@ class CrashService {
   // LocalFree.
   PSECURITY_DESCRIPTOR GetSecurityDescriptorForLowIntegrity();
 
-  google_breakpad::CrashGenerationServer* dumper_ = nullptr;
-  google_breakpad::CrashReportSender* sender_ = nullptr;
+  google_breakpad::CrashGenerationServer* dumper_;
+  google_breakpad::CrashReportSender* sender_;
 
   // the extra tag sent to the server with each dump.
   std::wstring reporter_tag_;
@@ -116,10 +118,10 @@ class CrashService {
   std::wstring reporter_url_;
 
   // clients serviced statistics:
-  int requests_handled_ = 0;
-  int requests_sent_ = 0;
-  volatile LONG clients_connected_ = 0;
-  volatile LONG clients_terminated_ = 0;
+  int requests_handled_;
+  int requests_sent_;
+  volatile LONG clients_connected_;
+  volatile LONG clients_terminated_;
   base::Lock sending_;
 
   DISALLOW_COPY_AND_ASSIGN(CrashService);

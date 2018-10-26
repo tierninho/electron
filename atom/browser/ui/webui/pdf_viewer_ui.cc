@@ -5,15 +5,13 @@
 #include "atom/browser/ui/webui/pdf_viewer_ui.h"
 
 #include <map>
-#include <memory>
-#include <utility>
 
 #include "atom/browser/atom_browser_context.h"
 #include "atom/browser/loader/layered_resource_handler.h"
 #include "atom/browser/ui/webui/pdf_viewer_handler.h"
-#include "atom/common/api/api_messages.h"
 #include "atom/common/atom_constants.h"
 #include "base/sequenced_task_runner_helpers.h"
+#include "components/pdf/common/pdf_messages.h"
 #include "content/browser/loader/resource_dispatcher_host_impl.h"
 #include "content/browser/loader/resource_request_info_impl.h"
 #include "content/browser/loader/stream_resource_handler.h"
@@ -34,7 +32,6 @@
 #include "net/base/mime_util.h"
 #include "net/url_request/url_request.h"
 #include "net/url_request/url_request_context.h"
-#include "services/network/public/cpp/resource_response.h"
 #include "ui/base/resource/resource_bundle.h"
 
 using content::BrowserThread;
@@ -81,13 +78,11 @@ class BundledDataSource : public content::URLDataSource {
   }
 
   std::string GetMimeType(const std::string& path) const override {
-    base::FilePath::StringType ext =
-        base::FilePath::FromUTF8Unsafe(PathWithoutParams(path)).Extension();
+    std::string filename = PathWithoutParams(path);
     std::string mime_type;
-    if (!ext.empty() &&
-        net::GetWellKnownMimeTypeFromExtension(ext.substr(1), &mime_type))
-      return mime_type;
-    return "text/html";
+    net::GetMimeTypeFromFile(
+        base::FilePath::FromUTF8Unsafe(filename), &mime_type);
+    return mime_type;
   }
 
   bool ShouldAddContentSecurityPolicy() const override { return false; }
@@ -137,10 +132,9 @@ class PdfViewerUI::ResourceRequester
     request->set_method("GET");
 
     content::ResourceDispatcherHostImpl::Get()->InitializeURLRequest(
-        request.get(), content::Referrer(url, blink::kWebReferrerPolicyDefault),
+        request.get(), content::Referrer(url, blink::WebReferrerPolicyDefault),
         false,  // download.
-        render_process_id, render_view_id, render_frame_id,
-        content::PREVIEWS_OFF, resource_context);
+        render_process_id, render_view_id, render_frame_id, resource_context);
 
     content::ResourceRequestInfoImpl* info =
         content::ResourceRequestInfoImpl::ForRequest(request.get());
@@ -148,8 +142,8 @@ class PdfViewerUI::ResourceRequester
         content::GetStreamContextForResourceContext(resource_context);
 
     std::unique_ptr<content::ResourceHandler> handler =
-        std::make_unique<content::StreamResourceHandler>(
-            request.get(), stream_context->registry(), origin, false);
+        base::MakeUnique<content::StreamResourceHandler>(
+            request.get(), stream_context->registry(), origin);
     info->set_is_stream(true);
     stream_info_.reset(new content::StreamInfo);
     stream_info_->handle =
@@ -172,7 +166,7 @@ class PdfViewerUI::ResourceRequester
 
  protected:
   // atom::LayeredResourceHandler::Delegate:
-  void OnResponseStarted(network::ResourceResponse* response) override {
+  void OnResponseStarted(content::ResourceResponse* response) override {
     DCHECK_CURRENTLY_ON(BrowserThread::IO);
 
     auto resource_response_head = response->head;
@@ -208,8 +202,7 @@ PdfViewerUI::PdfViewerUI(content::BrowserContext* browser_context,
       content::WebContentsObserver(web_ui->GetWebContents()),
       src_(src) {
   pdf_handler_ = new PdfViewerHandler(src);
-  web_ui->AddMessageHandler(
-      std::unique_ptr<content::WebUIMessageHandler>(pdf_handler_));
+  web_ui->AddMessageHandler(pdf_handler_);
   content::URLDataSource::Add(browser_context, new BundledDataSource);
 }
 
@@ -220,7 +213,7 @@ bool PdfViewerUI::OnMessageReceived(
     content::RenderFrameHost* render_frame_host) {
   bool handled = true;
   IPC_BEGIN_MESSAGE_MAP(PdfViewerUI, message)
-    IPC_MESSAGE_HANDLER(AtomFrameHostMsg_PDFSaveURLAs, OnSaveURLAs)
+    IPC_MESSAGE_HANDLER(PDFHostMsg_PDFSaveURLAs, OnSaveURLAs)
     IPC_MESSAGE_UNHANDLED(handled = false)
   IPC_END_MESSAGE_MAP()
   return handled;

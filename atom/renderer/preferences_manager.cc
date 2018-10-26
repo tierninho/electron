@@ -13,9 +13,11 @@ PreferencesManager::PreferencesManager() {
   content::RenderThread::Get()->AddObserver(this);
 }
 
-PreferencesManager::~PreferencesManager() {}
+PreferencesManager::~PreferencesManager() {
+}
 
-bool PreferencesManager::OnControlMessageReceived(const IPC::Message& message) {
+bool PreferencesManager::OnControlMessageReceived(
+    const IPC::Message& message) {
   bool handled = true;
   IPC_BEGIN_MESSAGE_MAP(PreferencesManager, message)
     IPC_MESSAGE_HANDLER(AtomMsg_UpdatePreferences, OnUpdatePreferences)
@@ -26,9 +28,7 @@ bool PreferencesManager::OnControlMessageReceived(const IPC::Message& message) {
 
 void PreferencesManager::OnUpdatePreferences(
     const base::ListValue& preferences) {
-  auto copy =
-      base::ListValue::From(base::Value::ToUniquePtrValue(preferences.Clone()));
-  preferences_.swap(copy);
+  preferences_ = preferences.CreateDeepCopy();
 }
 
 }  // namespace atom

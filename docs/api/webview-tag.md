@@ -1,18 +1,8 @@
 # `<webview>` Tag
 
-## Warning
-
-Electron's `webview` tag is based on [Chromium's `webview`][chrome-webview], which
-is undergoing dramatic architectural changes. This impacts the stability of `webviews`,
-including rendering, navigation, and event routing. We currently recommend to not
-use the `webview` tag and to consider alternatives, like `iframe`, Electron's `BrowserView`,
-or an architecture that avoids embedded content altogether.
-
-## Overview
-
 > Display external web content in an isolated frame and process.
 
-Process: [Renderer](../glossary.md#renderer-process)
+Process: [Renderer](../tutorial/quick-start.md#renderer-process)
 
 Use the `webview` tag to embed 'guest' content (such as web pages) in your
 Electron app. The guest content is contained within the `webview` container.
@@ -23,7 +13,10 @@ Unlike an `iframe`, the `webview` runs in a separate process than your
 app. It doesn't have the same permissions as your web page and all interactions
 between your app and embedded content will be asynchronous. This keeps your app
 safe from the embedded content. **Note:** Most methods called on the
-webview from the host page require a synchronous call to the main process.
+webview from the host page require a syncronous call to the main process.
+
+For security purposes, `webview` can only be used in `BrowserWindow`s that have
+`nodeIntegration` enabled.
 
 ## Example
 
@@ -62,27 +55,35 @@ and displays a "loading..." message during the load time:
 </script>
 ```
 
-## Internal implementation
-
-Under the hood `webview` is implemented with [Out-of-Process iframes (OOPIFs)](https://www.chromium.org/developers/design-documents/oop-iframes).
-The `webview` tag is essentially a custom element using shadow DOM to wrap an
-`iframe` element inside it.
-
-So the behavior of `webview` is very similar to a cross-domain `iframe`, as
-examples:
-
-* When clicking into a `webview`, the page focus will move from the embedder
-  frame to `webview`.
-* You can not add keyboard event listeners to `webview`.
-* All reactions between the embedder frame and `webview` are asynchronous.
-
 ## CSS Styling Notes
 
 Please note that the `webview` tag's style uses `display:flex;` internally to
-ensure the child `iframe` element fills the full height and width of its `webview`
-container when used with traditional and flexbox layouts. Please do not
-overwrite the default `display:flex;` CSS property, unless specifying
+ensure the child `object` element fills the full height and width of its `webview`
+container when used with traditional and flexbox layouts (since v0.36.11). Please
+do not overwrite the default `display:flex;` CSS property, unless specifying
 `display:inline-flex;` for inline layout.
+
+`webview` has issues being hidden using the `hidden` attribute or using `display: none;`.
+It can cause unusual rendering behaviour within its child `browserplugin` object
+and the web page is reloaded, when the `webview` is un-hidden, as opposed to just
+becoming visible again. The recommended approach is to hide the `webview` using
+CSS by zeroing the `width` & `height` and allowing the element to shrink to the 0px
+dimensions via `flex`.
+
+```html
+<style>
+  webview {
+    display:inline-flex;
+    width:640px;
+    height:480px;
+  }
+  webview.hide {
+    flex: 0 1;
+    width: 0px;
+    height: 0px;
+  }
+</style>
+```
 
 ## Tag Attributes
 
@@ -126,15 +127,6 @@ integration and can use node APIs like `require` and `process` to access low
 level system resources. Node integration is disabled by default in the guest
 page.
 
-### `enableremotemodule`
-
-```html
-<webview src="http://www.google.com/" enableremotemodule="false"></webview>
-```
-
-When this attribute is `false` the guest page in `webview` will not have access
-to the [`remote`](remote.md) module. The remote module is avaiable by default.
-
 ### `plugins`
 
 ```html
@@ -157,9 +149,6 @@ will be loaded by `require` in guest page under the hood.
 When the guest page doesn't have node integration this script will still have
 access to all Node APIs, but global objects injected by Node will be deleted
 after this script has finished executing.
-
-**Note:** This option will be appear as `preloadURL` (not `preload`) in
-the `webPreferences` specified to the `will-attach-webview` event.
 
 ### `httpreferrer`
 
@@ -191,7 +180,7 @@ Web security is enabled by default.
 
 ```html
 <webview src="https://github.com" partition="persist:github"></webview>
-<webview src="https://electronjs.org" partition="electron"></webview>
+<webview src="https://electron.atom.io" partition="electron"></webview>
 ```
 
 Sets the session used by the page. If `partition` starts with `persist:`, the
@@ -228,15 +217,15 @@ A name by itself is given a `true` boolean value.
 A preference can be set to another value by including an `=`, followed by the value.
 Special values `yes` and `1` are interpreted as `true`, while `no` and `0` are interpreted as `false`.
 
-### `enableblinkfeatures`
+### `blinkfeatures`
 
 ```html
-<webview src="https://www.github.com/" enableblinkfeatures="PreciseMemoryInfo, CSSVariables"></webview>
+<webview src="https://www.github.com/" blinkfeatures="PreciseMemoryInfo, CSSVariables"></webview>
 ```
 
 A list of strings which specifies the blink features to be enabled separated by `,`.
 The full list of supported feature strings can be found in the
-[RuntimeEnabledFeatures.json5][runtime-enabled-features] file.
+[RuntimeEnabledFeatures.json5][blink-feature-string] file.
 
 ### `disableblinkfeatures`
 
@@ -246,7 +235,60 @@ The full list of supported feature strings can be found in the
 
 A list of strings which specifies the blink features to be disabled separated by `,`.
 The full list of supported feature strings can be found in the
-[RuntimeEnabledFeatures.json5][runtime-enabled-features] file.
+[RuntimeEnabledFeatures.json5][blink-feature-string] file.
+
+### `guestinstance`
+
+```html
+<webview src="https://www.github.com/" guestinstance="3"></webview>
+```
+
+A value that links the webview to a specific webContents. When a webview
+first loads a new webContents is created and this attribute is set to its
+instance identifier. Setting this attribute on a new or existing webview
+connects it to the existing webContents that currently renders in a different
+webview.
+
+The existing webview will see the `destroy` event and will then create a new
+webContents when a new url is loaded.
+
+### `disableguestresize`
+
+```html
+<webview src="https://www.github.com/" disableguestresize></webview>
+```
+
+When this attribute is present the `webview` contents will be prevented from
+resizing when the `webview` element itself is resized.
+
+This can be used in combination with
+[`webContents.setSize`](web-contents.md#contentssetsizeoptions) to manually
+resize the webview contents in reaction to a window size change. This can
+make resizing faster compared to relying on the webview element bounds to
+automatically resize the contents.
+
+```javascript
+const {webContents} = require('electron')
+
+// We assume that `win` points to a `BrowserWindow` instance containing a
+// `<webview>` with `disableguestresize`.
+
+win.on('resize', () => {
+  const [width, height] = win.getContentSize()
+  for (let wc of webContents.getAllWebContents()) {
+    // Check if `wc` belongs to a webview in the `win` window.
+    if (wc.hostWebContents &&
+        wc.hostWebContents.id === win.webContents.id) {
+      wc.setSize({
+        normal: {
+          width: width,
+          height: height
+        }
+      })
+    }
+  }
+})
+```
 
 ## Methods
 
@@ -267,20 +309,14 @@ webview.addEventListener('dom-ready', () => {
 
 * `url` URL
 * `options` Object (optional)
-  * `httpReferrer` (String | [Referrer](structures/referrer.md)) (optional) - An HTTP Referrer url.
+  * `httpReferrer` String (optional) - A HTTP Referrer url.
   * `userAgent` String (optional) - A user agent originating the request.
   * `extraHeaders` String (optional) - Extra headers separated by "\n"
-  * `postData` ([UploadRawData[]](structures/upload-raw-data.md) | [UploadFile[]](structures/upload-file.md) | [UploadBlob[]](structures/upload-blob.md)) (optional)
+  * `postData` ([UploadRawData[]](structures/upload-raw-data.md) | [UploadFile[]](structures/upload-file.md) | [UploadFileSystem[]](structures/upload-file-system.md) | [UploadBlob[]](structures/upload-blob.md)) - (optional)
   * `baseURLForDataURL` String (optional) - Base url (with trailing path separator) for files to be loaded by the data url. This is needed only if the specified `url` is a data url and needs to load other files.
 
 Loads the `url` in the webview, the `url` must contain the protocol prefix,
 e.g. the `http://` or `file://`.
-
-### `<webview>.downloadURL(url)`
-
-* `url` String
-
-Initiates a download of the resource at `url` without navigating.
 
 ### `<webview>.getURL()`
 
@@ -293,11 +329,6 @@ Returns `String` - The title of guest page.
 ### `<webview>.isLoading()`
 
 Returns `Boolean` - Whether guest page is still loading resources.
-
-### `<webview>.isLoadingMainFrame()`
-
-Returns `Boolean` - Whether the main frame (and not just iframes or frames within it) is
-still loading.
 
 ### `<webview>.isWaitingForResponse()`
 
@@ -374,10 +405,10 @@ Returns `String` - The user agent for guest page.
 
 Injects CSS into the guest page.
 
-### `<webview>.executeJavaScript(code[, userGesture, callback])`
+### `<webview>.executeJavaScript(code, userGesture, callback)`
 
 * `code` String
-* `userGesture` Boolean (optional) - Default `false`.
+* `userGesture` Boolean - Default `false`.
 * `callback` Function (optional) - Called after script has been executed.
   * `result` Any
 
@@ -421,10 +452,6 @@ Set guest page muted.
 ### `<webview>.isAudioMuted()`
 
 Returns `Boolean` - Whether guest page has been muted.
-
-### `<webview>.isCurrentlyAudible()`
-
-Returns `Boolean` - Whether audio is currently playing.
 
 ### `<webview>.undo()`
 
@@ -484,27 +511,26 @@ Inserts `text` to the focused element.
 
 * `text` String - Content to be searched, must not be empty.
 * `options` Object (optional)
-  * `forward` Boolean (optional) - Whether to search forward or backward, defaults to `true`.
-  * `findNext` Boolean (optional) - Whether the operation is first request or a follow up,
+  * `forward` Boolean - (optional) Whether to search forward or backward, defaults to `true`.
+  * `findNext` Boolean - (optional) Whether the operation is first request or a follow up,
     defaults to `false`.
-  * `matchCase` Boolean (optional) - Whether search should be case-sensitive,
+  * `matchCase` Boolean - (optional) Whether search should be case-sensitive,
     defaults to `false`.
-  * `wordStart` Boolean (optional) - Whether to look only at the start of words.
+  * `wordStart` Boolean - (optional) Whether to look only at the start of words.
     defaults to `false`.
-  * `medialCapitalAsWordStart` Boolean (optional) - When combined with `wordStart`,
+  * `medialCapitalAsWordStart` Boolean - (optional) When combined with `wordStart`,
     accepts a match in the middle of a word if the match begins with an
     uppercase letter followed by a lowercase or non-letter.
     Accepts several other intra-word matches, defaults to `false`.
 
-Returns `Integer` - The request id used for the request.
-
-Starts a request to find all matches for the `text` in the web page. The result of the request
-can be obtained by subscribing to [`found-in-page`](webview-tag.md#event-found-in-page) event.
+Starts a request to find all matches for the `text` in the web page and returns an `Integer`
+representing the request id used for the request. The result of the request can be
+obtained by subscribing to [`found-in-page`](webview-tag.md#event-found-in-page) event.
 
 ### `<webview>.stopFindInPage(action)`
 
 * `action` String - Specifies the action to take place when ending
-  [`<webview>.findInPage`](#webviewfindinpagetext-options) request.
+  [`<webview>.findInPage`](webview-tag.md#webviewtagfindinpage) request.
   * `clearSelection` - Clear the selection.
   * `keepSelection` - Translate the selection into a normal selection.
   * `activateSelection` - Focus and click the selection node.
@@ -514,24 +540,23 @@ Stops any `findInPage` request for the `webview` with the provided `action`.
 ### `<webview>.print([options])`
 
 * `options` Object (optional)
-  * `silent` Boolean (optional) - Don't ask user for print settings. Default is `false`.
-  * `printBackground` Boolean (optional) - Also prints the background color and image of
+  * `silent` Boolean - Don't ask user for print settings. Default is `false`.
+  * `printBackground` Boolean - Also prints the background color and image of
     the web page. Default is `false`.
-  * `deviceName` String (optional) - Set the printer device name to use. Default is `''`.
 
 Prints `webview`'s web page. Same as `webContents.print([options])`.
 
 ### `<webview>.printToPDF(options, callback)`
 
 * `options` Object
-  * `marginsType` Integer (optional) - Specifies the type of margins to use. Uses 0 for
+  * `marginsType` Integer - (optional) Specifies the type of margins to use. Uses 0 for
     default margin, 1 for no margin, and 2 for minimum margin.
-  * `pageSize` String (optional) - Specify page size of the generated PDF. Can be `A3`,
+  * `pageSize` String - (optional) Specify page size of the generated PDF. Can be `A3`,
     `A4`, `A5`, `Legal`, `Letter`, `Tabloid` or an Object containing `height`
     and `width` in microns.
-  * `printBackground` Boolean (optional) - Whether to print CSS backgrounds.
-  * `printSelectionOnly` Boolean (optional) - Whether to print selection only.
-  * `landscape` Boolean (optional) - `true` for landscape, `false` for portrait.
+  * `printBackground` Boolean - (optional) Whether to print CSS backgrounds.
+  * `printSelectionOnly` Boolean - (optional) Whether to print selection only.
+  * `landscape` Boolean - (optional) `true` for landscape, `false` for portrait.
 * `callback` Function
   * `error` Error
   * `data` Buffer
@@ -540,7 +565,7 @@ Prints `webview`'s web page as PDF, Same as `webContents.printToPDF(options, cal
 
 ### `<webview>.capturePage([rect, ]callback)`
 
-* `rect` [Rectangle](structures/rectangle.md) (optional) - The area of the page to be captured.
+* `rect` [Rectangle](structures/rectangle.md) (optional) - The area of the page to be captured
 * `callback` Function
   * `image` [NativeImage](native-image.md)
 
@@ -553,9 +578,9 @@ Captures a snapshot of the `webview`'s page. Same as `webContents.capturePage([r
 
 Send an asynchronous message to renderer process via `channel`, you can also
 send arbitrary arguments. The renderer process can handle the message by
-listening to the `channel` event with the [`ipcRenderer`](ipc-renderer.md) module.
+listening to the `channel` event with the `ipcRenderer` module.
 
-See [webContents.send](web-contents.md#contentssendchannel-arg1-arg2-) for
+See [webContents.send](web-contents.md#webcontentssendchannel-args) for
 examples.
 
 ### `<webview>.sendInputEvent(event)`
@@ -564,7 +589,7 @@ examples.
 
 Sends an input `event` to the page.
 
-See [webContents.sendInputEvent](web-contents.md#contentssendinputeventevent)
+See [webContents.sendInputEvent](web-contents.md#webcontentssendinputeventevent)
 for detailed description of `event` object.
 
 ### `<webview>.setZoomFactor(factor)`
@@ -576,42 +601,11 @@ zoom percent divided by 100, so 300% = 3.0.
 
 ### `<webview>.setZoomLevel(level)`
 
-* `level` Number - Zoom level.
+* `level` Number - Zoom level
 
 Changes the zoom level to the specified level. The original size is 0 and each
 increment above or below represents zooming 20% larger or smaller to default
-limits of 300% and 50% of original size, respectively. The formula for this is
-`scale := 1.2 ^ level`.
-
-### `<webview>.getZoomFactor(callback)`
-
-* `callback` Function
-  * `zoomFactor` Number
-
-Sends a request to get current zoom factor, the `callback` will be called with
-`callback(zoomFactor)`.
-
-### `<webview>.getZoomLevel(callback)`
-
-* `callback` Function
-  * `zoomLevel` Number
-
-Sends a request to get current zoom level, the `callback` will be called with
-`callback(zoomLevel)`.
-
-### `<webview>.setVisualZoomLevelLimits(minimumLevel, maximumLevel)`
-
-* `minimumLevel` Number
-* `maximumLevel` Number
-
-Sets the maximum and minimum pinch-to-zoom level.
-
-### `<webview>.setLayoutZoomLevelLimits(minimumLevel, maximumLevel)`
-
-* `minimumLevel` Number
-* `maximumLevel` Number
-
-Sets the maximum and minimum layout-based (i.e. non-visual) zoom level.
+limits of 300% and 50% of original size, respectively.
 
 ### `<webview>.showDefinitionForSelection()` _macOS_
 
@@ -621,9 +615,6 @@ Shows pop-up dictionary that searches the selected word on the page.
 
 Returns [`WebContents`](web-contents.md) - The web contents associated with
 this `webview`.
-
-It depends on the [`remote`](remote.md) module,
-it is therefore not available when this module is disabled.
 
 ## DOM events
 
@@ -672,6 +663,32 @@ Corresponds to the points in time when the spinner of the tab starts spinning.
 ### Event: 'did-stop-loading'
 
 Corresponds to the points in time when the spinner of the tab stops spinning.
+
+### Event: 'did-get-response-details'
+
+Returns:
+
+* `status` Boolean
+* `newURL` String
+* `originalURL` String
+* `httpResponseCode` Integer
+* `requestMethod` String
+* `referrer` String
+* `headers` Object
+* `resourceType` String
+
+Fired when details regarding a requested resource is available.
+`status` indicates socket connection to download the resource.
+
+### Event: 'did-get-redirect-request'
+
+Returns:
+
+* `oldURL` String
+* `newURL` String
+* `isMainFrame` Boolean
+
+Fired when a redirect was received while requesting a resource.
 
 ### Event: 'dom-ready'
 
@@ -736,7 +753,7 @@ Returns:
   * `finalUpdate` Boolean
 
 Fired when a result is available for
-[`webview.findInPage`](#webviewfindinpagetext-options) request.
+[`webview.findInPage`](webview-tag.md#webviewtagfindinpage) request.
 
 ```javascript
 const webview = document.querySelector('webview')
@@ -757,14 +774,14 @@ Returns:
 * `disposition` String - Can be `default`, `foreground-tab`, `background-tab`,
   `new-window`, `save-to-disk` and `other`.
 * `options` Object - The options which should be used for creating the new
-  [`BrowserWindow`](browser-window.md).
+  `BrowserWindow`.
 
 Fired when the guest page attempts to open a new browser window.
 
 The following example code opens the new url in system's default browser.
 
 ```javascript
-const { shell } = require('electron')
+const {shell} = require('electron')
 const webview = document.querySelector('webview')
 
 webview.addEventListener('new-window', (e) => {
@@ -841,7 +858,7 @@ Returns:
 
 Fired when the guest page has sent an asynchronous message to embedder page.
 
-With `sendToHost` method and `ipc-message` event you can communicate
+With `sendToHost` method and `ipc-message` event you can easily communicate
 between guest page and embedder page:
 
 ```javascript
@@ -856,7 +873,7 @@ webview.send('ping')
 
 ```javascript
 // In guest page.
-const { ipcRenderer } = require('electron')
+const {ipcRenderer} = require('electron')
 ipcRenderer.on('ping', () => {
   ipcRenderer.sendToHost('pong')
 })
@@ -923,5 +940,4 @@ Emitted when DevTools is closed.
 
 Emitted when DevTools is focused / opened.
 
-[runtime-enabled-features]: https://cs.chromium.org/chromium/src/third_party/blink/renderer/platform/runtime_enabled_features.json5?l=70
-[chrome-webview]: https://developer.chrome.com/apps/tags/webview
+[blink-feature-string]: https://cs.chromium.org/chromium/src/third_party/WebKit/Source/platform/RuntimeEnabledFeatures.json5?l=62

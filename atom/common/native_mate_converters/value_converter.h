@@ -10,12 +10,11 @@
 namespace base {
 class DictionaryValue;
 class ListValue;
-class Value;
-}  // namespace base
+}
 
 namespace mate {
 
-template <>
+template<>
 struct Converter<base::DictionaryValue> {
   static bool FromV8(v8::Isolate* isolate,
                      v8::Local<v8::Value> val,
@@ -24,16 +23,7 @@ struct Converter<base::DictionaryValue> {
                                    const base::DictionaryValue& val);
 };
 
-template <>
-struct Converter<base::Value> {
-  static bool FromV8(v8::Isolate* isolate,
-                     v8::Local<v8::Value> val,
-                     base::Value* out);
-  static v8::Local<v8::Value> ToV8(v8::Isolate* isolate,
-                                   const base::Value& val);
-};
-
-template <>
+template<>
 struct Converter<base::ListValue> {
   static bool FromV8(v8::Isolate* isolate,
                      v8::Local<v8::Value> val,

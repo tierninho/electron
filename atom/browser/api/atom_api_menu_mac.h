@@ -21,25 +21,18 @@ namespace api {
 class MenuMac : public Menu {
  protected:
   MenuMac(v8::Isolate* isolate, v8::Local<v8::Object> wrapper);
-  ~MenuMac() override;
 
-  void PopupAt(TopLevelWindow* window,
-               int x,
-               int y,
-               int positioning_item,
-               const base::Closure& callback) override;
+  void PopupAt(
+      Window* window, int x, int y, int positioning_item, bool async) override;
   void PopupOnUI(const base::WeakPtr<NativeWindow>& native_window,
-                 int32_t window_id,
-                 int x,
-                 int y,
-                 int positioning_item,
-                 base::Closure callback);
+                 int32_t window_id, int x, int y, int positioning_item,
+                 bool async);
   void ClosePopupAt(int32_t window_id) override;
 
  private:
   friend class Menu;
 
-  void OnClosed(int32_t window_id, base::Closure callback);
+  static void SendActionToFirstResponder(const std::string& action);
 
   scoped_nsobject<AtomMenuController> menu_controller_;
 

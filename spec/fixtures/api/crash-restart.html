@@ -19,13 +19,13 @@ crashReporter.start({
 })
 
 if (process.platform === 'win32') {
-  ipcRenderer.sendSync('crash-service-pid', crashReporter.crashServicePid)
+  ipcRenderer.sendSync('crash-service-pid', crashReporter._crashServiceProcess.pid)
 }
 
 setImmediate(() => {
   if (process.platform === 'darwin') {
-    crashReporter.addExtraParameter('extra2', 'extra2')
-    crashReporter.removeExtraParameter('extra3')
+    crashReporter.setExtraParameter('extra2', 'extra2')
+    crashReporter.setExtraParameter('extra3', null)
   } else {
     crashReporter.start({
       productName: 'Zombies',

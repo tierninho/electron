@@ -7,13 +7,10 @@
 #include "chrome/renderer/spellchecker/spellcheck_worditerator.h"
 
 #include <map>
-#include <memory>
 #include <string>
-#include <utility>
 
 #include "base/i18n/break_iterator.h"
 #include "base/logging.h"
-#include "base/macros.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
 #include "third_party/icu/source/common/unicode/normlzr.h"
@@ -24,9 +21,11 @@
 // SpellcheckCharAttribute implementation:
 
 SpellcheckCharAttribute::SpellcheckCharAttribute()
-    : script_code_(USCRIPT_LATIN) {}
+    : script_code_(USCRIPT_LATIN) {
+}
 
-SpellcheckCharAttribute::~SpellcheckCharAttribute() {}
+SpellcheckCharAttribute::~SpellcheckCharAttribute() {
+}
 
 void SpellcheckCharAttribute::SetDefaultLanguage(const std::string& language) {
   CreateRuleSets(language);
@@ -34,8 +33,8 @@ void SpellcheckCharAttribute::SetDefaultLanguage(const std::string& language) {
 
 base::string16 SpellcheckCharAttribute::GetRuleSet(
     bool allow_contraction) const {
-  return allow_contraction ? ruleset_allow_contraction_
-                           : ruleset_disallow_contraction_;
+  return allow_contraction ?
+      ruleset_allow_contraction_ : ruleset_disallow_contraction_;
 }
 
 void SpellcheckCharAttribute::CreateRuleSets(const std::string& language) {
@@ -161,13 +160,8 @@ void SpellcheckCharAttribute::CreateRuleSets(const std::string& language) {
 
   // Treat numbers as word characters except for Arabic and Hebrew.
   const char* aletter_extra = " [0123456789]";
-  if (script_code_ == USCRIPT_HEBREW)
+  if (script_code_ == USCRIPT_HEBREW || script_code_ == USCRIPT_ARABIC)
     aletter_extra = "";
-  else if (script_code_ == USCRIPT_ARABIC)
-    // When "script=Arabic", it does not include tatweel, which is
-    // "script=Common" so add it back. Otherwise, it creates unwanted
-    // word breaks.
-    aletter_extra = " [\\u0640]";
 
   const char kMidLetterExtra[] = "";
   // For Hebrew, treat single/double quoation marks as MidLetter.
@@ -184,11 +178,19 @@ void SpellcheckCharAttribute::CreateRuleSets(const std::string& language) {
   const char kDisallowContraction[] = "";
 
   ruleset_allow_contraction_ = base::ASCIIToUTF16(
-      base::StringPrintf(kRuleTemplate, aletter, aletter_extra, midletter_extra,
-                         aletter_plus, kAllowContraction));
+      base::StringPrintf(kRuleTemplate,
+                         aletter,
+                         aletter_extra,
+                         midletter_extra,
+                         aletter_plus,
+                         kAllowContraction));
   ruleset_disallow_contraction_ = base::ASCIIToUTF16(
-      base::StringPrintf(kRuleTemplate, aletter, aletter_extra, midletter_extra,
-                         aletter_plus, kDisallowContraction));
+      base::StringPrintf(kRuleTemplate,
+                         aletter,
+                         aletter_extra,
+                         midletter_extra,
+                         aletter_plus,
+                         kDisallowContraction));
 }
 
 bool SpellcheckCharAttribute::OutputChar(UChar c,
@@ -212,11 +214,12 @@ bool SpellcheckCharAttribute::OutputChar(UChar c,
 
 bool SpellcheckCharAttribute::OutputArabic(UChar c,
                                            base::string16* output) const {
-  // Include non-Arabic characters (which should trigger a spelling error)
-  // and Arabic characters excluding vowel marks and class "Lm".
-  // We filter the latter because, while they are "letters", they are
-  // optional and so don't affect the correctness of the rest of the word.
-  if (!(0x0600 <= c && c <= 0x06FF) || (u_isalpha(c) && c != 0x0640))
+  // Discard characters not from Arabic alphabets. We also discard vowel marks
+  // of Arabic (Damma, Fatha, Kasra, etc.) to prevent our Arabic dictionary from
+  // marking an Arabic word including vowel marks as misspelled. (We need to
+  // check these vowel marks manually and filter them out since their script
+  // codes are USCRIPT_ARABIC.)
+  if (0x0621 <= c && c <= 0x064D)
     output->push_back(c);
   return true;
 }
@@ -278,8 +281,8 @@ bool SpellcheckCharAttribute::OutputHebrew(UChar c,
   // USCRIPT_HEBREW.)
   // Pass through ASCII single/double quotation marks and Hebrew Geresh and
   // Gershayim.
-  if ((0x05D0 <= c && c <= 0x05EA) || c == 0x22 || c == 0x27 || c == 0x05F4 ||
-      c == 0x05F3)
+  if ((0x05D0 <= c && c <= 0x05EA) || c == 0x22 || c == 0x27 ||
+      c == 0x05F4 || c == 0x05F3)
     output->push_back(c);
   return true;
 }
@@ -298,7 +301,10 @@ bool SpellcheckCharAttribute::OutputDefault(UChar c,
 // SpellcheckWordIterator implementation:
 
 SpellcheckWordIterator::SpellcheckWordIterator()
-    : text_(nullptr), attribute_(nullptr), iterator_() {}
+    : text_(NULL),
+      attribute_(NULL),
+      iterator_() {
+}
 
 SpellcheckWordIterator::~SpellcheckWordIterator() {
   Reset();
@@ -351,10 +357,9 @@ bool SpellcheckWordIterator::SetText(const base::char16* text, size_t length) {
   return true;
 }
 
-SpellcheckWordIterator::WordIteratorStatus SpellcheckWordIterator::GetNextWord(
-    base::string16* word_string,
-    int* word_start,
-    int* word_length) {
+bool SpellcheckWordIterator::GetNextWord(base::string16* word_string,
+                                         int* word_start,
+                                         int* word_length) {
   DCHECK(!!text_);
 
   word_string->clear();
@@ -362,41 +367,28 @@ SpellcheckWordIterator::WordIteratorStatus SpellcheckWordIterator::GetNextWord(
   *word_length = 0;
 
   if (!text_) {
-    return IS_END_OF_TEXT;
+    return false;
   }
 
-  // Find a word that can be checked for spelling or a character that can be
-  // skipped over. Rather than moving past a skippable character this returns
-  // IS_SKIPPABLE and defers handling the character to the calling function.
+  // Find a word that can be checked for spelling. Our rule sets filter out
+  // invalid words (e.g. numbers and characters not supported by the
+  // spellchecker language) so this ubrk_getRuleStatus() call returns
+  // UBRK_WORD_NONE when this iterator finds an invalid word. So, we skip such
+  // words until we can find a valid word or reach the end of the input string.
   while (iterator_->Advance()) {
     const size_t start = iterator_->prev();
     const size_t length = iterator_->pos() - start;
-    switch (iterator_->GetWordBreakStatus()) {
-      case base::i18n::BreakIterator::IS_WORD_BREAK: {
-        if (Normalize(start, length, word_string)) {
-          *word_start = start;
-          *word_length = length;
-          return IS_WORD;
-        }
-        break;
-      }
-      case base::i18n::BreakIterator::IS_SKIPPABLE_WORD: {
-        *word_string = iterator_->GetString();
+    if (iterator_->IsWord()) {
+      if (Normalize(start, length, word_string)) {
         *word_start = start;
         *word_length = length;
-        return IS_SKIPPABLE;
-      }
-      // |iterator_| is RULE_BASED so the break status should never be
-      // IS_LINE_OR_CHAR_BREAK.
-      case base::i18n::BreakIterator::IS_LINE_OR_CHAR_BREAK: {
-        NOTREACHED();
-        break;
+        return true;
       }
     }
   }
 
   // There aren't any more words in the given text.
-  return IS_END_OF_TEXT;
+  return false;
 }
 
 void SpellcheckWordIterator::Reset() {

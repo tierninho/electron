@@ -13,7 +13,7 @@ namespace atom {
 class MenuModelAdapter : public views::MenuModelAdapter {
  public:
   explicit MenuModelAdapter(AtomMenuModel* menu_model);
-  ~MenuModelAdapter() override;
+  virtual ~MenuModelAdapter();
 
  protected:
   bool GetAccelerator(int id, ui::Accelerator* accelerator) const override;

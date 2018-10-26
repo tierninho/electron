@@ -13,14 +13,13 @@
 #include "base/compiler_specific.h"
 
 namespace base {
-template <typename T>
-struct DefaultSingletonTraits;
+template <typename T> struct DefaultSingletonTraits;
 }
 
 namespace google_breakpad {
 class ExceptionHandler;
 class MinidumpDescriptor;
-}  // namespace google_breakpad
+}
 
 namespace crash_reporter {
 
@@ -43,7 +42,7 @@ class CrashReporterLinux : public CrashReporter {
   friend struct base::DefaultSingletonTraits<CrashReporterLinux>;
 
   CrashReporterLinux();
-  ~CrashReporterLinux() override;
+  virtual ~CrashReporterLinux();
 
   void EnableCrashDumping(const base::FilePath& crashes_dir);
 
@@ -54,10 +53,10 @@ class CrashReporterLinux : public CrashReporter {
   std::unique_ptr<google_breakpad::ExceptionHandler> breakpad_;
   std::unique_ptr<CrashKeyStorage> crash_keys_;
 
-  uint64_t process_start_time_ = 0;
-  pid_t pid_ = 0;
+  uint64_t process_start_time_;
+  pid_t pid_;
   std::string upload_url_;
-  bool upload_to_server_ = true;
+  bool upload_to_server_;
 
   DISALLOW_COPY_AND_ASSIGN(CrashReporterLinux);
 };

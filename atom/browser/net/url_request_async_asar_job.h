@@ -5,29 +5,23 @@
 #ifndef ATOM_BROWSER_NET_URL_REQUEST_ASYNC_ASAR_JOB_H_
 #define ATOM_BROWSER_NET_URL_REQUEST_ASYNC_ASAR_JOB_H_
 
-#include <memory>
-
 #include "atom/browser/net/asar/url_request_asar_job.h"
 #include "atom/browser/net/js_asker.h"
 
 namespace atom {
 
 // Like URLRequestAsarJob, but asks the JavaScript handler for file path.
-class URLRequestAsyncAsarJob : public asar::URLRequestAsarJob, public JsAsker {
+class URLRequestAsyncAsarJob : public JsAsker<asar::URLRequestAsarJob> {
  public:
   URLRequestAsyncAsarJob(net::URLRequest*, net::NetworkDelegate*);
-  ~URLRequestAsyncAsarJob() override;
 
-  void StartAsync(std::unique_ptr<base::Value> options, int error);
+  // JsAsker:
+  void StartAsync(std::unique_ptr<base::Value> options) override;
 
   // URLRequestJob:
-  void Start() override;
   void GetResponseInfo(net::HttpResponseInfo* info) override;
-  void Kill() override;
 
  private:
-  base::WeakPtrFactory<URLRequestAsyncAsarJob> weak_factory_;
-
   DISALLOW_COPY_AND_ASSIGN(URLRequestAsyncAsarJob);
 };
 

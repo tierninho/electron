@@ -5,7 +5,6 @@
 #ifndef ATOM_BROWSER_ATOM_BLOB_READER_H_
 #define ATOM_BROWSER_ATOM_BLOB_READER_H_
 
-#include <memory>
 #include <string>
 
 #include "base/callback.h"
@@ -21,13 +20,14 @@ class IOBuffer;
 namespace storage {
 class BlobDataHandle;
 class BlobReader;
-}  // namespace storage
+class FileSystemContext;
+}
 
 namespace v8 {
 template <class T>
 class Local;
 class Value;
-}  // namespace v8
+}
 
 namespace atom {
 
@@ -37,11 +37,13 @@ class AtomBlobReader {
  public:
   using CompletionCallback = base::Callback<void(v8::Local<v8::Value>)>;
 
-  explicit AtomBlobReader(content::ChromeBlobStorageContext* blob_context);
+  AtomBlobReader(content::ChromeBlobStorageContext* blob_context,
+                 storage::FileSystemContext* file_system_context);
   ~AtomBlobReader();
 
-  void StartReading(const std::string& uuid,
-                    const AtomBlobReader::CompletionCallback& callback);
+  void StartReading(
+      const std::string& uuid,
+      const AtomBlobReader::CompletionCallback& callback);
 
  private:
   // A self-destroyed helper class to read the blob data.
@@ -68,6 +70,7 @@ class AtomBlobReader {
   };
 
   scoped_refptr<content::ChromeBlobStorageContext> blob_context_;
+  scoped_refptr<storage::FileSystemContext> file_system_context_;
 
   DISALLOW_COPY_AND_ASSIGN(AtomBlobReader);
 };

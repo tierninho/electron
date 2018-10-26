@@ -5,7 +5,6 @@
 #ifndef ATOM_BROWSER_API_ATOM_API_SYSTEM_PREFERENCES_H_
 #define ATOM_BROWSER_API_ATOM_API_SYSTEM_PREFERENCES_H_
 
-#include <memory>
 #include <string>
 
 #include "atom/browser/api/event_emitter.h"
@@ -27,21 +26,12 @@ namespace atom {
 
 namespace api {
 
-#if defined(OS_MACOSX)
-enum NotificationCenterKind {
-  kNSDistributedNotificationCenter = 0,
-  kNSNotificationCenter,
-  kNSWorkspaceNotificationCenter,
-};
-#endif
-
 class SystemPreferences : public mate::EventEmitter<SystemPreferences>
 #if defined(OS_WIN)
-    ,
-                          public BrowserObserver,
-                          public gfx::SysColorChangeListener
+    , public BrowserObserver
+    , public gfx::SysColorChangeListener
 #endif
-{
+  {
  public:
   static mate::Handle<SystemPreferences> Create(v8::Isolate* isolate);
 
@@ -50,6 +40,11 @@ class SystemPreferences : public mate::EventEmitter<SystemPreferences>
 
 #if defined(OS_WIN)
   bool IsAeroGlassEnabled();
+
+  typedef HRESULT (STDAPICALLTYPE *DwmGetColorizationColor)(DWORD *, BOOL *);
+  DwmGetColorizationColor dwmGetColorizationColor =
+    (DwmGetColorizationColor) GetProcAddress(LoadLibraryW(L"dwmapi.dll"),
+                                            "DwmGetColorizationColor");
 
   std::string GetAccentColor();
   std::string GetColor(const std::string& color, mate::Arguments* args);
@@ -63,38 +58,25 @@ class SystemPreferences : public mate::EventEmitter<SystemPreferences>
   void OnFinishLaunching(const base::DictionaryValue& launch_info) override;
 
 #elif defined(OS_MACOSX)
-  using NotificationCallback =
-      base::Callback<void(const std::string&, const base::DictionaryValue&)>;
+  using NotificationCallback = base::Callback<
+    void(const std::string&, const base::DictionaryValue&)>;
 
   void PostNotification(const std::string& name,
                         const base::DictionaryValue& user_info);
+  void PostLocalNotification(const std::string& name,
+                             const base::DictionaryValue& user_info);
   int SubscribeNotification(const std::string& name,
                             const NotificationCallback& callback);
   void UnsubscribeNotification(int id);
-  void PostLocalNotification(const std::string& name,
-                             const base::DictionaryValue& user_info);
   int SubscribeLocalNotification(const std::string& name,
                                  const NotificationCallback& callback);
   void UnsubscribeLocalNotification(int request_id);
-  void PostWorkspaceNotification(const std::string& name,
-                                 const base::DictionaryValue& user_info);
-  int SubscribeWorkspaceNotification(const std::string& name,
-                                     const NotificationCallback& callback);
-  void UnsubscribeWorkspaceNotification(int request_id);
   v8::Local<v8::Value> GetUserDefault(const std::string& name,
                                       const std::string& type);
-  void RegisterDefaults(mate::Arguments* args);
   void SetUserDefault(const std::string& name,
                       const std::string& type,
                       mate::Arguments* args);
-  void RemoveUserDefault(const std::string& name);
   bool IsSwipeTrackingFromScrollEventsEnabled();
-
-  // TODO(MarshallOfSound): Write tests for these methods once we
-  // are running tests on a Mojave machine
-  v8::Local<v8::Value> GetEffectiveAppearance(v8::Isolate* isolate);
-  v8::Local<v8::Value> GetAppLevelAppearance(v8::Isolate* isolate);
-  void SetAppLevelAppearance(mate::Arguments* args);
 #endif
   bool IsDarkMode();
   bool IsInvertedColorScheme();
@@ -106,25 +88,21 @@ class SystemPreferences : public mate::EventEmitter<SystemPreferences>
 #if defined(OS_MACOSX)
   void DoPostNotification(const std::string& name,
                           const base::DictionaryValue& user_info,
-                          NotificationCenterKind kind);
+                          bool is_local);
   int DoSubscribeNotification(const std::string& name,
                               const NotificationCallback& callback,
-                              NotificationCenterKind kind);
-  void DoUnsubscribeNotification(int request_id, NotificationCenterKind kind);
+                              bool is_local);
+  void DoUnsubscribeNotification(int request_id, bool is_local);
 #endif
 
  private:
 #if defined(OS_WIN)
   // Static callback invoked when a message comes in to our messaging window.
-  static LRESULT CALLBACK WndProcStatic(HWND hwnd,
-                                        UINT message,
-                                        WPARAM wparam,
-                                        LPARAM lparam);
+  static LRESULT CALLBACK
+      WndProcStatic(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam);
 
-  LRESULT CALLBACK WndProc(HWND hwnd,
-                           UINT message,
-                           WPARAM wparam,
-                           LPARAM lparam);
+  LRESULT CALLBACK
+      WndProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam);
 
   // The window class of |window_|.
   ATOM atom_;

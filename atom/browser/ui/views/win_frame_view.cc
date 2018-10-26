@@ -10,11 +10,18 @@
 
 namespace atom {
 
-const char WinFrameView::kViewClassName[] = "WinFrameView";
+namespace {
 
-WinFrameView::WinFrameView() {}
+const char kViewClassName[] = "WinFrameView";
 
-WinFrameView::~WinFrameView() {}
+}  // namespace
+
+
+WinFrameView::WinFrameView() {
+}
+
+WinFrameView::~WinFrameView() {
+}
 
 gfx::Rect WinFrameView::GetWindowBoundsForClientBounds(
     const gfx::Rect& client_bounds) const {

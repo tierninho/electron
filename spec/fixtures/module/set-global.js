@@ -1,1 +1,1 @@
-if (!window.test) window.test = 'preload'
+window.test = 'preload'

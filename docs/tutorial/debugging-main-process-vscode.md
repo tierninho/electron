@@ -2,7 +2,7 @@
 
 ### 1. Open an Electron project in VSCode.
 
-```sh
+```bash
 $ git clone git@github.com:electron/electron-quick-start.git
 $ code electron-quick-start
 ```
@@ -19,15 +19,13 @@ $ code electron-quick-start
       "request": "launch",
       "cwd": "${workspaceRoot}",
       "runtimeExecutable": "${workspaceRoot}/node_modules/.bin/electron",
-      "windows": {
-        "runtimeExecutable": "${workspaceRoot}/node_modules/.bin/electron.cmd"
-      },
-      "args" : ["."]
+      "program": "${workspaceRoot}/main.js"
     }
   ]
 }
 ```
 
+**Note:** For Windows, use `"${workspaceRoot}/node_modules/.bin/electron.cmd"` for `runtimeExecutable`.
 
 ### 3. Debugging
 

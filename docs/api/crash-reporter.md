@@ -8,7 +8,7 @@ The following is an example of automatically submitting a crash report to a
 remote server:
 
 ```javascript
-const { crashReporter } = require('electron')
+const {crashReporter} = require('electron')
 
 crashReporter.start({
   productName: 'YourName',
@@ -24,11 +24,6 @@ following projects:
 * [socorro](https://github.com/mozilla/socorro)
 * [mini-breakpad-server](https://github.com/electron/mini-breakpad-server)
 
-Or use a 3rd party hosted solution:
-
-* [Backtrace I/O](https://backtrace.io/electron/)
-* [Sentry](https://docs.sentry.io/clients/electron)
-
 Crash reports are saved locally in an application-specific temp directory folder.
 For a `productName` of `YourName`, crash reports will be stored in a folder
 named `YourName Crashes` inside the temp directory. You can customize this temp
@@ -42,7 +37,7 @@ The `crashReporter` module has the following methods:
 ### `crashReporter.start(options)`
 
 * `options` Object
-  * `companyName` String
+  * `companyName` String (optional)
   * `submitURL` String - URL that crash reports will be sent to as POST.
   * `productName` String (optional) - Defaults to `app.getName()`.
   * `uploadToServer` Boolean (optional) - Whether crash reports should be sent to the server
@@ -50,8 +45,7 @@ The `crashReporter` module has the following methods:
   * `ignoreSystemCrashHandler` Boolean (optional) - Default is `false`.
   * `extra` Object (optional) - An object you can define that will be sent along with the
     report. Only string properties are sent correctly. Nested objects are not
-    supported and the property names and values must be less than 64 characters long.
-  * `crashesDirectory` String (optional) - Directory to store the crashreports temporarily (only used when the crash reporter is started via `process.crashReporter.start`).
+    supported.
 
 You are required to call this method before using any other `crashReporter` APIs
 and in each process (main/renderer) from which you want to collect crash reports.
@@ -67,22 +61,22 @@ This will start the process that will monitor and send the crash reports. Replac
 and `crashesDirectory` with appropriate values.
 
 **Note:** If you need send additional/updated `extra` parameters after your
-first call `start` you can call `addExtraParameter` on macOS or call `start`
+first call `start` you can call `setExtraParameter` on macOS or call `start`
 again with the new/updated `extra` parameters on Linux and Windows.
 
 ```js
-const args = [
-  `--reporter-url=${submitURL}`,
-  `--application-name=${productName}`,
-  `--crashes-directory=${crashesDirectory}`
-]
-const env = {
-  ELECTRON_INTERNAL_CRASH_SERVICE: 1
-}
-spawn(process.execPath, args, {
-  env: env,
-  detached: true
-})
+ const args = [
+   `--reporter-url=${submitURL}`,
+   `--application-name=${productName}`,
+   `--crashes-directory=${crashesDirectory}`
+ ]
+ const env = {
+   ELECTRON_INTERNAL_CRASH_SERVICE: 1
+ }
+ spawn(process.execPath, args, {
+   env: env,
+   detached: true
+ })
 ```
 
 **Note:** On macOS, Electron uses a new `crashpad` client for crash collection and reporting.
@@ -107,37 +101,31 @@ ID.
 
 ### `crashReporter.getUploadToServer()` _Linux_ _macOS_
 
-Returns `Boolean` - Whether reports should be submitted to the server. Set through
+Returns `Boolean` - Whether reports should be submitted to the server.  Set through
 the `start` method or `setUploadToServer`.
 
 **Note:** This API can only be called from the main process.
 
 ### `crashReporter.setUploadToServer(uploadToServer)` _Linux_ _macOS_
 
-* `uploadToServer` Boolean _macOS_ - Whether reports should be submitted to the server.
+* `uploadToServer` Boolean _macOS_ - Whether reports should be submitted to the server
 
 This would normally be controlled by user preferences. This has no effect if
 called before `start` is called.
 
 **Note:** This API can only be called from the main process.
 
-### `crashReporter.addExtraParameter(key, value)` _macOS_
+### `crashReporter.setExtraParameter(key, value)` _macOS_
 
-* `key` String - Parameter key, must be less than 64 characters long.
-* `value` String - Parameter value, must be less than 64 characters long.
+* `key` String - Parameter key.
+* `value` String - Parameter value. Specifying `null` or `undefined` will
+  remove the key from the extra parameters.
 
-Set an extra parameter to be sent with the crash report. The values
-specified here will be sent in addition to any values set via the `extra` option when `start` was called. This API is only available on macOS, if you need to add/update extra parameters on Linux and Windows after your first call to `start` you can call `start` again with the updated `extra` options.
-
-### `crashReporter.removeExtraParameter(key)` _macOS_
-
-* `key` String - Parameter key, must be less than 64 characters long.
-
-Remove a extra parameter from the current set of parameters so that it will not be sent with the crash report.
-
-### `crashReporter.getParameters()`
-
-See all of the current parameters being passed to the crash reporter.
+Set an extra parameter to set be sent with the crash report. The values
+specified here will be sent in addition to any values set via the `extra` option
+when `start` was called. This API is only available on macOS, if you need to
+add/update extra parameters on Linux and Windows after your first call to
+`start` you can call `start` again with the updated `extra` options.
 
 ## Crash Report Payload
 
@@ -147,7 +135,7 @@ a `multipart/form-data` `POST`:
 * `ver` String - The version of Electron.
 * `platform` String - e.g. 'win32'.
 * `process_type` String - e.g. 'renderer'.
-* `guid` String - e.g. '5e1286fc-da97-479e-918b-6bfb0c3d1c72'.
+* `guid` String - e.g. '5e1286fc-da97-479e-918b-6bfb0c3d1c72'
 * `_version` String - The version in `package.json`.
 * `_productName` String - The product name in the `crashReporter` `options`
   object.

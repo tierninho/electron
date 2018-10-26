@@ -10,7 +10,6 @@
 #if defined(OS_WIN)
 #include <windows.h>  // windows.h must be included first
 
-#include <atlbase.h>  // ensures that ATL statics like `_AtlWinModule` are initialized (it's an issue in static debug build)
 #include <shellapi.h>
 #include <shellscalingapi.h>
 #include <tchar.h>
@@ -24,7 +23,7 @@
 #include "base/win/windows_version.h"
 #include "content/public/app/sandbox_helper_win.h"
 #include "sandbox/win/src/sandbox_types.h"
-#elif defined(OS_LINUX)                   // defined(OS_WIN)
+#elif defined(OS_LINUX)  // defined(OS_WIN)
 #include "atom/app/atom_main_delegate.h"  // NOLINT
 #include "content/public/app/content_main.h"
 #else  // defined(OS_LINUX)
@@ -35,13 +34,10 @@
 #include "atom/common/atom_command_line.h"
 #include "base/at_exit.h"
 #include "base/i18n/icu_util.h"
-#include "electron/buildflags/buildflags.h"
 
 namespace {
 
-#if BUILDFLAG(ENABLE_RUN_AS_NODE)
-const char kRunAsNode[] = "ELECTRON_RUN_AS_NODE";
-#endif
+const char* kRunAsNode = "ELECTRON_RUN_AS_NODE";
 
 bool IsEnvSet(const char* name) {
 #if defined(OS_WIN)
@@ -70,7 +66,7 @@ int APIENTRY wWinMain(HINSTANCE instance, HINSTANCE, wchar_t* cmd, int) {
 
 #ifdef _DEBUG
   // Don't display assert dialog boxes in CI test runs
-  static const char* kCI = "ELECTRON_CI";
+  static const auto kCI = "ELECTRON_CI";
   bool is_ci = IsEnvSet(kCI);
   if (!is_ci) {
     for (int i = 0; i < arguments.argc; ++i) {
@@ -92,34 +88,12 @@ int APIENTRY wWinMain(HINSTANCE instance, HINSTANCE, wchar_t* cmd, int) {
   }
 #endif
 
-#if BUILDFLAG(ENABLE_RUN_AS_NODE)
   bool run_as_node = IsEnvSet(kRunAsNode);
-#else
-  bool run_as_node = false;
-#endif
 
   // Make sure the output is printed to console.
   if (run_as_node || !IsEnvSet("ELECTRON_NO_ATTACH_CONSOLE"))
     base::RouteStdioToConsole(false);
 
-#ifndef DEBUG
-  // Chromium has its own TLS subsystem which supports automatic destruction
-  // of thread-local data, and also depends on memory allocation routines
-  // provided by the CRT. The problem is that the auto-destruction mechanism
-  // uses a hidden feature of the OS loader which calls a callback on thread
-  // exit, but only after all loaded DLLs have been detached. Since the CRT is
-  // also a DLL, it happens that by the time Chromium's `OnThreadExit` function
-  // is called, the heap functions, though still in memory, no longer perform
-  // their duties, and when Chromium calls `free` on its buffer, it triggers
-  // an access violation error.
-  // We work around this problem by invoking Chromium's `OnThreadExit` in time
-  // from within the CRT's atexit facility, ensuring the heap functions are
-  // still active. The second invocation from the OS loader will be a no-op.
-  extern void NTAPI OnThreadExit(PVOID module, DWORD reason, PVOID reserved);
-  atexit([]() { OnThreadExit(nullptr, DLL_THREAD_DETACH, nullptr); });
-#endif
-
-#if BUILDFLAG(ENABLE_RUN_AS_NODE)
   if (run_as_node) {
     std::vector<char*> argv(arguments.argc);
     std::transform(
@@ -131,10 +105,7 @@ int APIENTRY wWinMain(HINSTANCE instance, HINSTANCE, wchar_t* cmd, int) {
     auto ret = atom::NodeMain(argv.size(), argv.data());
     std::for_each(argv.begin(), argv.end(), free);
     return ret;
-  }
-#endif
-
-  if (IsEnvSet("ELECTRON_INTERNAL_CRASH_SERVICE")) {
+  } else if (IsEnvSet("ELECTRON_INTERNAL_CRASH_SERVICE")) {
     return crash_service::Main(cmd);
   }
 
@@ -155,13 +126,11 @@ int APIENTRY wWinMain(HINSTANCE instance, HINSTANCE, wchar_t* cmd, int) {
 #elif defined(OS_LINUX)  // defined(OS_WIN)
 
 int main(int argc, char* argv[]) {
-#if BUILDFLAG(ENABLE_RUN_AS_NODE)
   if (IsEnvSet(kRunAsNode)) {
     base::i18n::InitializeICU();
     base::AtExitManager atexit_manager;
     return atom::NodeMain(argc, argv);
   }
-#endif
 
   atom::AtomMainDelegate delegate;
   content::ContentMainParams params(&delegate);
@@ -174,11 +143,9 @@ int main(int argc, char* argv[]) {
 #else  // defined(OS_LINUX)
 
 int main(int argc, char* argv[]) {
-#if BUILDFLAG(ENABLE_RUN_AS_NODE)
   if (IsEnvSet(kRunAsNode)) {
     return AtomInitializeICUandStartNode(argc, argv);
   }
-#endif
 
   return AtomMain(argc, argv);
 }

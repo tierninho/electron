@@ -12,7 +12,5 @@
 	<string>FMWK</string>
 	<key>NSSupportsAutomaticGraphicsSwitching</key>
 	<true/>
-	<key>CFBundleVersion</key>
-	<string>${ELECTRON_VERSION}</string>
 </dict>
 </plist>

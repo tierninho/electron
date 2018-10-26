@@ -10,7 +10,7 @@ a `Session`.
 For example:
 
 ```javascript
-const { session } = require('electron')
+const {session} = require('electron')
 
 // Query all cookies.
 session.defaultSession.cookies.get({}, (error, cookies) => {
@@ -18,13 +18,13 @@ session.defaultSession.cookies.get({}, (error, cookies) => {
 })
 
 // Query all cookies associated with a specific url.
-session.defaultSession.cookies.get({ url: 'http://www.github.com' }, (error, cookies) => {
+session.defaultSession.cookies.get({url: 'http://www.github.com'}, (error, cookies) => {
   console.log(error, cookies)
 })
 
 // Set a cookie with the given cookie data;
 // may overwrite equivalent cookies if they exist.
-const cookie = { url: 'http://www.github.com', name: 'dummy_name', value: 'dummy' }
+const cookie = {url: 'http://www.github.com', name: 'dummy_name', value: 'dummy'}
 session.defaultSession.cookies.set(cookie, (error) => {
   if (error) console.error(error)
 })
@@ -37,7 +37,7 @@ The following events are available on instances of `Cookies`:
 #### Event: 'changed'
 
 * `event` Event
-* `cookie` [Cookie](structures/cookie.md) - The cookie that was changed.
+* `cookie` [Cookie](structures/cookie.md) - The cookie that was changed
 * `cause` String - The cause of the change with one of the following values:
   * `explicit` - The cookie was changed directly by a consumer's action.
   * `overwrite` - The cookie was automatically removed due to an insert
@@ -62,16 +62,18 @@ The following methods are available on instances of `Cookies`:
     `url`. Empty implies retrieving cookies of all urls.
   * `name` String (optional) - Filters cookies by name.
   * `domain` String (optional) - Retrieves cookies whose domains match or are
-    subdomains of `domains`.
+    subdomains of `domains`
   * `path` String (optional) - Retrieves cookies whose path matches `path`.
   * `secure` Boolean (optional) - Filters cookies by their Secure property.
   * `session` Boolean (optional) - Filters out session or persistent cookies.
 * `callback` Function
   * `error` Error
-  * `cookies` [Cookie[]](structures/cookie.md) - an array of cookie objects.
+  * `cookies` Cookies[]
 
-Sends a request to get all cookies matching `filter`, `callback` will be called
+Sends a request to get all cookies matching `details`, `callback` will be called
 with `callback(error, cookies)` on complete.
+
+`cookies` is an Array of [`cookie`](structures/cookie.md) objects.
 
 #### `cookies.set(details, callback)`
 

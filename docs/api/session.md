@@ -10,9 +10,9 @@ You can also access the `session` of existing pages by using the `session`
 property of [`WebContents`](web-contents.md), or from the `session` module.
 
 ```javascript
-const { BrowserWindow } = require('electron')
+const {BrowserWindow} = require('electron')
 
-let win = new BrowserWindow({ width: 800, height: 600 })
+let win = new BrowserWindow({width: 800, height: 600})
 win.loadURL('http://github.com')
 
 const ses = win.webContents.session
@@ -26,7 +26,7 @@ The `session` module has the following methods:
 ### `session.fromPartition(partition[, options])`
 
 * `partition` String
-* `options` Object (optional)
+* `options` Object
   * `cache` Boolean - Whether to enable cache.
 
 Returns `Session` - A session instance from `partition` string. When there is an existing
@@ -59,7 +59,7 @@ Process: [Main](../glossary.md#main-process)
 You can create a `Session` object in the `session` module:
 
 ```javascript
-const { session } = require('electron')
+const {session} = require('electron')
 const ses = session.fromPartition('persist:name')
 console.log(ses.getUserAgent())
 ```
@@ -80,7 +80,7 @@ Calling `event.preventDefault()` will cancel the download and `item` will not be
 available from next tick of the process.
 
 ```javascript
-const { session } = require('electron')
+const {session} = require('electron')
 session.defaultSession.on('will-download', (event, item, webContents) => {
   event.preventDefault()
   require('request')(item.getURL(), (data) => {
@@ -102,19 +102,19 @@ Callback is invoked with the session's current cache size.
 
 #### `ses.clearCache(callback)`
 
-* `callback` Function - Called when operation is done.
+* `callback` Function - Called when operation is done
 
 Clears the session’s HTTP cache.
 
 #### `ses.clearStorageData([options, callback])`
 
 * `options` Object (optional)
-  * `origin` String (optional) - Should follow `window.location.origin`’s representation
+  * `origin` String - Should follow `window.location.origin`’s representation
     `scheme://host:port`.
-  * `storages` String[] (optional) - The types of storages to clear, can contain:
+  * `storages` String[] - The types of storages to clear, can contain:
     `appcache`, `cookies`, `filesystem`, `indexdb`, `localstorage`,
-    `shadercache`, `websql`, `serviceworkers`, `cachestorage`.
-  * `quotas` String[] (optional) - The types of quotas to clear, can contain:
+    `shadercache`, `websql`, `serviceworkers`
+  * `quotas` String[] - The types of quotas to clear, can contain:
     `temporary`, `persistent`, `syncable`.
 * `callback` Function (optional) - Called when operation is done.
 
@@ -140,7 +140,7 @@ option is ignored and `pacScript` configuration is applied.
 
 The `proxyRules` has to follow the rules below:
 
-```sh
+```
 proxyRules = schemeProxies[";"<schemeProxies>]
 schemeProxies = [<urlScheme>"="]<proxyURIList>
 urlScheme = "http" | "https" | "ftp" | "socks"
@@ -160,7 +160,7 @@ For example:
   over to the SOCKS5 proxy `bar.com` if `foopy` is unavailable.
 * `http=foopy,direct://` - Use HTTP proxy `foopy` for http URLs, and use no
   proxy if `foopy` is unavailable.
-* `http=foopy;socks=foopy2` - Use HTTP proxy `foopy` for http URLs, and use
+* `http=foopy;socks=foopy2` -  Use HTTP proxy `foopy` for http URLs, and use
   `socks4://foopy2` for all other URLs.
 
 The `proxyBypassRules` is a comma separated list of rules described below:
@@ -187,7 +187,7 @@ The `proxyBypassRules` is a comma separated list of rules described below:
    Examples:
      "127.0.1", "[0:0::1]", "[::1]", "http://[::1]:99"
 
-* `IP_LITERAL "/" PREFIX_LENGTH_IN_BITS`
+*  `IP_LITERAL "/" PREFIX_LENGHT_IN_BITS`
 
    Match any URL that is to an IP literal that falls between the
    given range. IP range is specified using CIDR notation.
@@ -195,7 +195,7 @@ The `proxyBypassRules` is a comma separated list of rules described below:
    Examples:
      "192.168.1.1/16", "fefe:13::abc/33".
 
-* `<local>`
+*  `<local>`
 
    Match local addresses. The meaning of `<local>` is whether the
    host matches one of: "127.0.0.1", "::1", "localhost".
@@ -211,7 +211,7 @@ Resolves the proxy information for `url`. The `callback` will be called with
 
 #### `ses.setDownloadPath(path)`
 
-* `path` String - The download location.
+* `path` String - The download location
 
 Sets download saving directory. By default, the download directory will be the
 `Downloads` under the respective app folder.
@@ -239,7 +239,7 @@ window.webContents.session.enableNetworkEmulation({
 })
 
 // To emulate a network outage.
-window.webContents.session.enableNetworkEmulation({ offline: true })
+window.webContents.session.enableNetworkEmulation({offline: true})
 ```
 
 #### `ses.disableNetworkEmulation()`
@@ -253,13 +253,12 @@ the original network configuration.
   * `request` Object
     * `hostname` String
     * `certificate` [Certificate](structures/certificate.md)
-    * `verificationResult` String - Verification result from chromium.
-    * `errorCode` Integer - Error code.
+    * `error` String - Verification result from chromium.
   * `callback` Function
     * `verificationResult` Integer - Value can be one of certificate error codes
     from [here](https://code.google.com/p/chromium/codesearch#chromium/src/net/base/net_error_list.h).
     Apart from the certificate error codes, the following special codes can be used.
-      * `0` - Indicates success and disables Certificate Transparency verification.
+      * `0` - Indicates success and disables Certificate Transperancy verification.
       * `-2` - Indicates failure.
       * `-3` - Uses the verification result from chromium.
 
@@ -272,11 +271,11 @@ Calling `setCertificateVerifyProc(null)` will revert back to default certificate
 verify proc.
 
 ```javascript
-const { BrowserWindow } = require('electron')
+const {BrowserWindow} = require('electron')
 let win = new BrowserWindow()
 
 win.webContents.session.setCertificateVerifyProc((request, callback) => {
-  const { hostname } = request
+  const {hostname} = request
   if (hostname === 'github.com') {
     callback(0)
   } else {
@@ -287,55 +286,24 @@ win.webContents.session.setCertificateVerifyProc((request, callback) => {
 
 #### `ses.setPermissionRequestHandler(handler)`
 
-* `handler` Function | null
+* `handler` Function
   * `webContents` [WebContents](web-contents.md) - WebContents requesting the permission.
   * `permission` String - Enum of 'media', 'geolocation', 'notifications', 'midiSysex',
     'pointerLock', 'fullscreen', 'openExternal'.
   * `callback` Function
-    * `permissionGranted` Boolean - Allow or deny the permission.
-  * `details` Object - Some properties are only available on certain permission types.
-    * `externalURL` String - The url of the `openExternal` request.
-    * `mediaTypes` String[] - The types of media access being requested, elements can be `video`
-      or `audio`
+    * `permissionGranted` Boolean - Allow or deny the permission
 
 Sets the handler which can be used to respond to permission requests for the `session`.
 Calling `callback(true)` will allow the permission and `callback(false)` will reject it.
-To clear the handler, call `setPermissionRequestHandler(null)`.
 
 ```javascript
-const { session } = require('electron')
+const {session} = require('electron')
 session.fromPartition('some-partition').setPermissionRequestHandler((webContents, permission, callback) => {
   if (webContents.getURL() === 'some-host' && permission === 'notifications') {
     return callback(false) // denied.
   }
 
   callback(true)
-})
-```
-
-#### `ses.setPermissionCheckHandler(handler)`
-
-* `handler` Function<Boolean> | null
-  * `webContents` [WebContents](web-contents.md) - WebContents checking the permission.
-  * `permission` String - Enum of 'media'.
-  * `requestingOrigin` String - The origin URL of the permission check
-  * `details` Object - Some properties are only available on certain permission types.
-    * `securityOrigin` String - The security orign of the `media` check.
-    * `mediaType` String - The type of media access being requested, can be `video`,
-      `audio` or `unknown`
-
-Sets the handler which can be used to respond to permission checks for the `session`.
-Returning `true` will allow the permission and `false` will reject it.
-To clear the handler, call `setPermissionCheckHandler(null)`.
-
-```javascript
-const { session } = require('electron')
-session.fromPartition('some-partition').setPermissionCheckHandler((webContents, permission) => {
-  if (webContents.getURL() === 'some-host' && permission === 'notifications') {
-    return false // denied
-  }
-
-  return true
 })
 ```
 
@@ -347,14 +315,14 @@ Clears the host resolver cache.
 
 #### `ses.allowNTLMCredentialsForDomains(domains)`
 
-* `domains` String - A comma-separated list of servers for which
+* `domains` String - A comma-seperated list of servers for which
   integrated authentication is enabled.
 
 Dynamically sets whether to always send credentials for HTTP NTLM or Negotiate
 authentication.
 
 ```javascript
-const { session } = require('electron')
+const {session} = require('electron')
 // consider any url ending with `example.com`, `foobar.com`, `baz`
 // for integrated authentication.
 session.defaultSession.allowNTLMCredentialsForDomains('*example.com, *foobar.com, *baz')
@@ -386,6 +354,8 @@ Returns `String` - The user agent for this session.
 * `callback` Function
   * `result` Buffer - Blob data.
 
+Returns `Blob` - The blob data associated with the `identifier`.
+
 #### `ses.createInterruptedDownload(options)`
 
 * `options` Object
@@ -408,21 +378,9 @@ the initial state will be `interrupted`. The download will start only when the
 #### `ses.clearAuthCache(options[, callback])`
 
 * `options` ([RemovePassword](structures/remove-password.md) | [RemoveClientCertificate](structures/remove-client-certificate.md))
-* `callback` Function (optional) - Called when operation is done.
+* `callback` Function (optional) - Called when operation is done
 
 Clears the session’s HTTP authentication cache.
-
-#### `ses.setPreloads(preloads)`
-
-* `preloads` String[] - An array of absolute path to preload scripts
-
-Adds scripts that will be executed on ALL web contents that are associated with
-this session just before normal `preload` scripts run.
-
-#### `ses.getPreloads()`
-
-Returns `String[]` an array of paths to preload scripts that have been
-registered.
 
 ### Instance Properties
 
@@ -441,33 +399,16 @@ A [WebRequest](web-request.md) object for this session.
 A [Protocol](protocol.md) object for this session.
 
 ```javascript
-const { app, session } = require('electron')
+const {app, session} = require('electron')
 const path = require('path')
 
 app.on('ready', function () {
   const protocol = session.fromPartition('some-partition').protocol
   protocol.registerFileProtocol('atom', function (request, callback) {
     var url = request.url.substr(7)
-    callback({ path: path.normalize(`${__dirname}/${url}`) })
+    callback({path: path.normalize(`${__dirname}/${url}`)})
   }, function (error) {
     if (error) console.error('Failed to register protocol')
-  })
-})
-```
-
-#### `ses.netLog`
-
-A [NetLog](net-log.md) object for this session.
-
-```javascript
-const { app, session } = require('electron')
-
-app.on('ready', function () {
-  const netLog = session.fromPartition('some-partition').netLog
-  netLog.startLogging('/path/to/net-log')
-  // After some network events
-  netLog.stopLogging(path => {
-    console.log('Net-logs written to', path)
   })
 })
 ```

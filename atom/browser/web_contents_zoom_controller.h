@@ -24,30 +24,9 @@ class WebContentsZoomController
     virtual void OnZoomLevelChanged(content::WebContents* web_contents,
                                     double level,
                                     bool is_temporary) {}
-    virtual void OnZoomControllerWebContentsDestroyed() {}
 
    protected:
     virtual ~Observer() {}
-  };
-
-  // Defines how zoom changes are handled.
-  enum ZoomMode {
-    // Results in default zoom behavior, i.e. zoom changes are handled
-    // automatically and on a per-origin basis, meaning that other tabs
-    // navigated to the same origin will also zoom.
-    ZOOM_MODE_DEFAULT,
-    // Results in zoom changes being handled automatically, but on a per-tab
-    // basis. Tabs in this zoom mode will not be affected by zoom changes in
-    // other tabs, and vice versa.
-    ZOOM_MODE_ISOLATED,
-    // Overrides the automatic handling of zoom changes. The |onZoomChange|
-    // event will still be dispatched, but the page will not actually be zoomed.
-    // These zoom changes can be handled manually by listening for the
-    // |onZoomChange| event. Zooming in this mode is also on a per-tab basis.
-    ZOOM_MODE_MANUAL,
-    // Disables all zooming in this tab. The tab will revert to the default
-    // zoom level, and all attempted zoom changes will be ignored.
-    ZOOM_MODE_DISABLED,
   };
 
   explicit WebContentsZoomController(content::WebContents* web_contents);
@@ -66,20 +45,6 @@ class WebContentsZoomController
   void SetTemporaryZoomLevel(double level);
   bool UsesTemporaryZoomLevel();
 
-  // Sets the zoom mode, which defines zoom behavior (see enum ZoomMode).
-  void SetZoomMode(ZoomMode zoom_mode);
-
-  void ResetZoomModeOnNavigationIfNeeded(const GURL& url);
-
-  ZoomMode zoom_mode() const { return zoom_mode_; }
-
-  // Convenience method to get default zoom level. Implemented here for
-  // inlining.
-  double GetDefaultZoomLevel() const {
-    return content::HostZoomMap::GetForWebContents(web_contents())
-        ->GetDefaultZoomLevel();
-  }
-
  protected:
   // content::WebContentsObserver:
   void DidFinishNavigation(content::NavigationHandle* handle) override;
@@ -93,19 +58,14 @@ class WebContentsZoomController
   // Called after a navigation has committed to set default zoom factor.
   void SetZoomFactorOnNavigationIfNeeded(const GURL& url);
 
-  // The current zoom mode.
-  ZoomMode zoom_mode_ = ZOOM_MODE_DEFAULT;
-
-  // Current zoom level.
-  double zoom_level_ = 1.0;
-
   // kZoomFactor.
-  double default_zoom_factor_ = 0;
+  double default_zoom_factor_;
+  double temporary_zoom_level_;
 
-  int old_process_id_ = -1;
-  int old_view_id_ = -1;
+  int old_process_id_;
+  int old_view_id_;
 
-  WebContentsZoomController* embedder_zoom_controller_ = nullptr;
+  WebContentsZoomController* embedder_zoom_controller_;
 
   base::ObserverList<Observer> observers_;
 

@@ -24,7 +24,7 @@ class OffScreenWebContentsView : public content::WebContentsView,
                                  public content::RenderViewHostDelegateView {
  public:
   OffScreenWebContentsView(bool transparent, const OnPaintCallback& callback);
-  ~OffScreenWebContentsView() override;
+  ~OffScreenWebContentsView();
 
   void SetWebContents(content::WebContents*);
 
@@ -38,11 +38,10 @@ class OffScreenWebContentsView : public content::WebContentsView,
   void SetInitialFocus() override;
   void StoreFocus() override;
   void RestoreFocus() override;
-  void FocusThroughTabTraversal(bool reverse) override;
   content::DropData* GetDropData() const override;
   gfx::Rect GetViewBounds() const override;
-  void CreateView(const gfx::Size& initial_size,
-                  gfx::NativeView context) override;
+  void CreateView(
+      const gfx::Size& initial_size, gfx::NativeView context) override;
   content::RenderWidgetHostViewBase* CreateViewForWidget(
       content::RenderWidgetHost* render_widget_host,
       bool is_guest_view_hack) override;
@@ -50,10 +49,9 @@ class OffScreenWebContentsView : public content::WebContentsView,
       content::RenderWidgetHost* render_widget_host) override;
   void SetPageTitle(const base::string16& title) override;
   void RenderViewCreated(content::RenderViewHost* host) override;
-  void RenderViewReady() override;
-  void RenderViewHostChanged(content::RenderViewHost* old_host,
-                             content::RenderViewHost* new_host) override;
+  void RenderViewSwappedIn(content::RenderViewHost* host) override;
   void SetOverscrollControllerEnabled(bool enabled) override;
+  void GetScreenInfo(content::ScreenInfo* screen_info) const override;
 
 #if defined(OS_MACOSX)
   void SetAllowOtherViews(bool allow) override;
@@ -71,26 +69,18 @@ class OffScreenWebContentsView : public content::WebContentsView,
                      content::RenderWidgetHostImpl* source_rwh) override;
   void UpdateDragCursor(blink::WebDragOperation operation) override;
 
-  void SetPainting(bool painting);
-  bool IsPainting() const;
-  void SetFrameRate(int frame_rate);
-  int GetFrameRate() const;
-
  private:
 #if defined(OS_MACOSX)
   void PlatformCreate();
   void PlatformDestroy();
 #endif
 
-  OffScreenRenderWidgetHostView* GetView() const;
-
   const bool transparent_;
-  bool painting_ = true;
-  int frame_rate_ = 60;
   OnPaintCallback callback_;
 
   // Weak refs.
-  content::WebContents* web_contents_ = nullptr;
+  OffScreenRenderWidgetHostView* view_;
+  content::WebContents* web_contents_;
 
 #if defined(OS_MACOSX)
   OffScreenView* offScreenView_;

@@ -4,13 +4,10 @@
 
 Process: [Main](../glossary.md#main-process), [Renderer](../glossary.md#renderer-process)
 
-In the renderer process context it depends on the [`remote`](remote.md) module on Linux,
-it is therefore not available when this module is disabled.
-
 The following example shows how to write a string to the clipboard:
 
 ```javascript
-const { clipboard } = require('electron')
+const {clipboard} = require('electron')
 clipboard.writeText('Example String')
 ```
 
@@ -18,7 +15,7 @@ On X Window systems, there is also a selection clipboard. To manipulate it
 you need to pass `selection` to each method:
 
 ```javascript
-const { clipboard } = require('electron')
+const {clipboard} = require('electron')
 clipboard.writeText('Example String', 'selection')
 console.log(clipboard.readText('selection'))
 ```
@@ -106,7 +103,7 @@ clipboard.
 
 ```js
 clipboard.write({
-  text: 'https://electronjs.org',
+  text: 'https://electron.atom.io',
   bookmark: 'Electron Homepage'
 })
 ```
@@ -144,7 +141,7 @@ Returns `String[]` - An array of supported formats for the clipboard `type`.
 Returns `Boolean` - Whether the clipboard supports the specified `format`.
 
 ```javascript
-const { clipboard } = require('electron')
+const {clipboard} = require('electron')
 console.log(clipboard.has('<p>selection</p>'))
 ```
 
@@ -160,14 +157,6 @@ Returns `String` - Reads `format` type from the clipboard.
 
 Returns `Buffer` - Reads `format` type from the clipboard.
 
-### `clipboard.writeBuffer(format, buffer[, type])` _Experimental_
-
-* `format` String
-* `buffer` Buffer
-* `type` String (optional)
-
-Writes the `buffer` into the clipboard as `format`.
-
 ### `clipboard.write(data[, type])`
 
 * `data` Object
@@ -179,7 +168,7 @@ Writes the `buffer` into the clipboard as `format`.
 * `type` String (optional)
 
 ```javascript
-const { clipboard } = require('electron')
-clipboard.write({ text: 'test', html: '<b>test</b>' })
+const {clipboard} = require('electron')
+clipboard.write({text: 'test', html: '<b>test</b>'})
 ```
 Writes `data` to the clipboard.

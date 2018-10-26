@@ -80,12 +80,20 @@ file's name.
 
 The structure of a renamed app would be like:
 
-```text
+```
 MyApp.app/Contents
 ├── Info.plist
 ├── MacOS/
 │   └── MyApp
 └── Frameworks/
+    ├── MyApp Helper EH.app
+    |   ├── Info.plist
+    |   └── MacOS/
+    |       └── MyApp Helper EH
+    ├── MyApp Helper NP.app
+    |   ├── Info.plist
+    |   └── MacOS/
+    |       └── MyApp Helper NP
     └── MyApp Helper.app
         ├── Info.plist
         └── MacOS/
@@ -101,22 +109,30 @@ You can rename the `electron` executable to any name you like.
 Apart from packaging your app manually, you can also choose to use third party
 packaging tools to do the work for you:
 
-* [electron-forge](https://github.com/electron-userland/electron-forge)
 * [electron-builder](https://github.com/electron-userland/electron-builder)
 * [electron-packager](https://github.com/electron-userland/electron-packager)
 
 ## Rebranding by Rebuilding Electron from Source
 
 It is also possible to rebrand Electron by changing the product name and
-building it from source. To do this you need to set the build argument
-corresponding to the product name (`electron_product_name = "YourProductName"`)
-in the `args.gn` file and rebuild.
+building it from source. To do this you need to modify the `atom.gyp` file and
+have a clean rebuild.
+
+### grunt-build-atom-shell
+
+Manually checking out Electron's code and rebuilding could be complicated, so
+a Grunt task has been created that will handle this automatically:
+[grunt-build-atom-shell](https://github.com/paulcbetts/grunt-build-atom-shell).
+
+This task will automatically handle editing the `.gyp` file, building from
+source, then rebuilding your app's native Node modules to match the new
+executable name.
 
 ### Creating a Custom Electron Fork
 
 Creating a custom fork of Electron is almost certainly not something you will
 need to do in order to build your app, even for "Production Level" applications.
-Using a tool such as `electron-packager` or `electron-forge` will allow you to
+Using a tool such as `electron-packager` or `electron-builder` will allow you to
 "Rebrand" Electron without having to do these steps.
 
 You need to fork Electron when you have custom C++ code that you have patched
@@ -133,8 +149,8 @@ we appreciate your help.
 
 2. Create a new S3 bucket and create the following empty directory structure:
 
-    ```sh
-    - electron/
+    ```
+    - atom-shell/
       - symbols/
       - dist/
     ```
@@ -143,14 +159,14 @@ we appreciate your help.
 
   * `ELECTRON_GITHUB_TOKEN` - a token that can create releases on GitHub
   * `ELECTRON_S3_ACCESS_KEY`, `ELECTRON_S3_BUCKET`, `ELECTRON_S3_SECRET_KEY` -
-    the place where you'll upload Node.js headers as well as symbols
+    the place where you'll upload node.js headers as well as symbols
   * `ELECTRON_RELEASE` - Set to `true` and the upload part will run, leave unset
-    and `surf-build` will do CI-type checks, appropriate to run for every
+    and `surf-build` will just do CI-type checks, appropriate to run for every
     pull request.
   * `CI` - Set to `true` or else it will fail
   * `GITHUB_TOKEN` - set it to the same as `ELECTRON_GITHUB_TOKEN`
   * `SURF_TEMP` - set to `C:\Temp` on Windows to prevent path too long issues
-  * `TARGET_ARCH` - set to `ia32` or `x64`
+  * `TARGET_ARCH` - set to `ia32` or `x64`  
 
 4. In `script/upload.py`, you _must_ set `ELECTRON_REPO` to your fork (`MYORG/electron`),
   especially if you are a contributor to Electron proper.

@@ -5,7 +5,6 @@
 #include "atom/browser/api/atom_api_web_request.h"
 
 #include <string>
-#include <utility>
 
 #include "atom/browser/atom_browser_context.h"
 #include "atom/browser/net/atom_network_delegate.h"
@@ -20,10 +19,9 @@ using content::BrowserThread;
 
 namespace mate {
 
-template <>
+template<>
 struct Converter<URLPattern> {
-  static bool FromV8(v8::Isolate* isolate,
-                     v8::Local<v8::Value> val,
+  static bool FromV8(v8::Isolate* isolate, v8::Local<v8::Value> val,
                      URLPattern* out) {
     std::string pattern;
     if (!ConvertFromV8(isolate, val, &pattern))
@@ -39,45 +37,28 @@ namespace atom {
 
 namespace api {
 
-namespace {
-
-template <typename Method, typename Event, typename Listener>
-void CallNetworkDelegateMethod(
-    URLRequestContextGetter* url_request_context_getter,
-    Method method,
-    Event type,
-    URLPatterns patterns,
-    Listener listener) {
-  // Force creating network delegate.
-  url_request_context_getter->GetURLRequestContext();
-  // Then call the method.
-  auto* network_delegate = url_request_context_getter->network_delegate();
-  (network_delegate->*method)(type, std::move(patterns), std::move(listener));
-}
-
-}  // namespace
-
 WebRequest::WebRequest(v8::Isolate* isolate,
                        AtomBrowserContext* browser_context)
     : browser_context_(browser_context) {
   Init(isolate);
 }
 
-WebRequest::~WebRequest() {}
+WebRequest::~WebRequest() {
+}
 
-template <AtomNetworkDelegate::SimpleEvent type>
+template<AtomNetworkDelegate::SimpleEvent type>
 void WebRequest::SetSimpleListener(mate::Arguments* args) {
   SetListener<AtomNetworkDelegate::SimpleListener>(
       &AtomNetworkDelegate::SetSimpleListenerInIO, type, args);
 }
 
-template <AtomNetworkDelegate::ResponseEvent type>
+template<AtomNetworkDelegate::ResponseEvent type>
 void WebRequest::SetResponseListener(mate::Arguments* args) {
   SetListener<AtomNetworkDelegate::ResponseListener>(
       &AtomNetworkDelegate::SetResponseListenerInIO, type, args);
 }
 
-template <typename Listener, typename Method, typename Event>
+template<typename Listener, typename Method, typename Event>
 void WebRequest::SetListener(Method method, Event type, mate::Arguments* args) {
   // { urls }.
   URLPatterns patterns;
@@ -93,15 +74,10 @@ void WebRequest::SetListener(Method method, Event type, mate::Arguments* args) {
     return;
   }
 
-  auto* url_request_context_getter = static_cast<URLRequestContextGetter*>(
-      browser_context_->GetRequestContext());
-  if (!url_request_context_getter)
-    return;
-  BrowserThread::PostTask(
-      BrowserThread::IO, FROM_HERE,
-      base::BindOnce(&CallNetworkDelegateMethod<Method, Event, Listener>,
-                     base::RetainedRef(url_request_context_getter), method,
-                     type, std::move(patterns), std::move(listener)));
+  auto delegate = browser_context_->network_delegate();
+  BrowserThread::PostTask(BrowserThread::IO, FROM_HERE,
+                          base::Bind(method, base::Unretained(delegate), type,
+                                     patterns, listener));
 }
 
 // static
@@ -116,28 +92,30 @@ void WebRequest::BuildPrototype(v8::Isolate* isolate,
                                 v8::Local<v8::FunctionTemplate> prototype) {
   prototype->SetClassName(mate::StringToV8(isolate, "WebRequest"));
   mate::ObjectTemplateBuilder(isolate, prototype->PrototypeTemplate())
-      .SetMethod("onBeforeRequest", &WebRequest::SetResponseListener<
-                                        AtomNetworkDelegate::kOnBeforeRequest>)
+      .SetMethod("onBeforeRequest",
+                 &WebRequest::SetResponseListener<
+                    AtomNetworkDelegate::kOnBeforeRequest>)
       .SetMethod("onBeforeSendHeaders",
                  &WebRequest::SetResponseListener<
-                     AtomNetworkDelegate::kOnBeforeSendHeaders>)
+                    AtomNetworkDelegate::kOnBeforeSendHeaders>)
       .SetMethod("onHeadersReceived",
                  &WebRequest::SetResponseListener<
-                     AtomNetworkDelegate::kOnHeadersReceived>)
-      .SetMethod(
-          "onSendHeaders",
-          &WebRequest::SetSimpleListener<AtomNetworkDelegate::kOnSendHeaders>)
+                    AtomNetworkDelegate::kOnHeadersReceived>)
+      .SetMethod("onSendHeaders",
+                 &WebRequest::SetSimpleListener<
+                    AtomNetworkDelegate::kOnSendHeaders>)
       .SetMethod("onBeforeRedirect",
                  &WebRequest::SetSimpleListener<
-                     AtomNetworkDelegate::kOnBeforeRedirect>)
+                    AtomNetworkDelegate::kOnBeforeRedirect>)
       .SetMethod("onResponseStarted",
                  &WebRequest::SetSimpleListener<
-                     AtomNetworkDelegate::kOnResponseStarted>)
-      .SetMethod(
-          "onCompleted",
-          &WebRequest::SetSimpleListener<AtomNetworkDelegate::kOnCompleted>)
-      .SetMethod("onErrorOccurred", &WebRequest::SetSimpleListener<
-                                        AtomNetworkDelegate::kOnErrorOccurred>);
+                    AtomNetworkDelegate::kOnResponseStarted>)
+      .SetMethod("onCompleted",
+                 &WebRequest::SetSimpleListener<
+                    AtomNetworkDelegate::kOnCompleted>)
+      .SetMethod("onErrorOccurred",
+                 &WebRequest::SetSimpleListener<
+                    AtomNetworkDelegate::kOnErrorOccurred>);
 }
 
 }  // namespace api

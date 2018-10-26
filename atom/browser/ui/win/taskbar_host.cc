@@ -4,7 +4,6 @@
 
 #include "atom/browser/ui/win/taskbar_host.h"
 
-#include <objbase.h>
 #include <string>
 
 #include "atom/browser/native_window.h"
@@ -19,8 +18,7 @@ namespace atom {
 
 namespace {
 
-// From MSDN:
-// https://msdn.microsoft.com/en-us/library/windows/desktop/dd378460(v=vs.85).aspx#thumbbars
+// From MSDN: https://msdn.microsoft.com/en-us/library/windows/desktop/dd378460(v=vs.85).aspx#thumbbars
 // The thumbnail toolbar has a maximum of seven buttons due to the limited room.
 const size_t kMaxButtonsCount = 7;
 
@@ -50,17 +48,14 @@ bool GetThumbarButtonFlags(const std::vector<std::string>& flags,
 
 }  // namespace
 
-TaskbarHost::ThumbarButton::ThumbarButton() = default;
-TaskbarHost::ThumbarButton::ThumbarButton(const TaskbarHost::ThumbarButton&) =
-    default;
-TaskbarHost::ThumbarButton::~ThumbarButton() = default;
+TaskbarHost::TaskbarHost() : thumbar_buttons_added_(false) {
+}
 
-TaskbarHost::TaskbarHost() {}
+TaskbarHost::~TaskbarHost() {
+}
 
-TaskbarHost::~TaskbarHost() {}
-
-bool TaskbarHost::SetThumbarButtons(HWND window,
-                                    const std::vector<ThumbarButton>& buttons) {
+bool TaskbarHost::SetThumbarButtons(
+    HWND window, const std::vector<ThumbarButton>& buttons) {
   if (buttons.size() > kMaxButtonsCount || !InitializeTaskbar())
     return false;
 
@@ -132,9 +127,8 @@ void TaskbarHost::RestoreThumbarButtons(HWND window) {
   }
 }
 
-bool TaskbarHost::SetProgressBar(HWND window,
-                                 double value,
-                                 const NativeWindow::ProgressState state) {
+bool TaskbarHost::SetProgressBar(
+    HWND window, double value, const NativeWindow::ProgressState state) {
   if (!InitializeTaskbar())
     return false;
 
@@ -165,16 +159,15 @@ bool TaskbarHost::SetProgressBar(HWND window,
   return success;
 }
 
-bool TaskbarHost::SetOverlayIcon(HWND window,
-                                 const gfx::Image& overlay,
-                                 const std::string& text) {
+bool TaskbarHost::SetOverlayIcon(
+    HWND window, const gfx::Image& overlay, const std::string& text) {
   if (!InitializeTaskbar())
     return false;
 
   base::win::ScopedHICON icon(
       IconUtil::CreateHICONFromSkBitmap(overlay.AsBitmap()));
-  return SUCCEEDED(taskbar_->SetOverlayIcon(window, icon.get(),
-                                            base::UTF8ToUTF16(text).c_str()));
+  return SUCCEEDED(taskbar_->SetOverlayIcon(
+      window, icon.get(), base::UTF8ToUTF16(text).c_str()));
 }
 
 bool TaskbarHost::SetThumbnailClip(HWND window, const gfx::Rect& region) {
@@ -184,13 +177,14 @@ bool TaskbarHost::SetThumbnailClip(HWND window, const gfx::Rect& region) {
   if (region.IsEmpty()) {
     return SUCCEEDED(taskbar_->SetThumbnailClip(window, NULL));
   } else {
-    RECT rect =
-        display::win::ScreenWin::DIPToScreenRect(window, region).ToRECT();
+    RECT rect = display::win::ScreenWin::DIPToScreenRect(window, region)
+        .ToRECT();
     return SUCCEEDED(taskbar_->SetThumbnailClip(window, &rect));
   }
 }
 
-bool TaskbarHost::SetThumbnailToolTip(HWND window, const std::string& tooltip) {
+bool TaskbarHost::SetThumbnailToolTip(
+    HWND window, const std::string& tooltip) {
   if (!InitializeTaskbar())
     return false;
 
@@ -209,14 +203,10 @@ bool TaskbarHost::HandleThumbarButtonEvent(int button_id) {
 }
 
 bool TaskbarHost::InitializeTaskbar() {
-  if (taskbar_)
-    return true;
-
-  if (FAILED(::CoCreateInstance(CLSID_TaskbarList, nullptr,
-                                CLSCTX_INPROC_SERVER,
-                                IID_PPV_ARGS(&taskbar_))) ||
+  if (FAILED(taskbar_.CreateInstance(CLSID_TaskbarList,
+                                     nullptr,
+                                     CLSCTX_INPROC_SERVER)) ||
       FAILED(taskbar_->HrInit())) {
-    taskbar_.Reset();
     return false;
   } else {
     return true;

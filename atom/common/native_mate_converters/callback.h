@@ -20,7 +20,7 @@ namespace mate {
 
 namespace internal {
 
-template <typename T>
+template<typename T>
 class RefCountedGlobal;
 
 // Manages the V8 function with RAII.
@@ -55,9 +55,8 @@ struct V8FunctionInvoker<v8::Local<v8::Value>(ArgTypes...)> {
     v8::Local<v8::Function> holder = function.NewHandle(isolate);
     v8::Local<v8::Context> context = holder->CreationContext();
     v8::Context::Scope context_scope(context);
-    std::vector<v8::Local<v8::Value>> args{ConvertToV8(isolate, raw)...};
-    v8::Local<v8::Value> ret(holder->Call(
-        holder, args.size(), args.empty() ? nullptr : &args.front()));
+    std::vector<v8::Local<v8::Value>> args = { ConvertToV8(isolate, raw)... };
+    v8::Local<v8::Value> ret(holder->Call(holder, args.size(), &args.front()));
     return handle_scope.Escape(ret);
   }
 };
@@ -76,8 +75,8 @@ struct V8FunctionInvoker<void(ArgTypes...)> {
     v8::Local<v8::Function> holder = function.NewHandle(isolate);
     v8::Local<v8::Context> context = holder->CreationContext();
     v8::Context::Scope context_scope(context);
-    std::vector<v8::Local<v8::Value>> args{ConvertToV8(isolate, raw)...};
-    holder->Call(holder, args.size(), args.empty() ? nullptr : &args.front());
+    std::vector<v8::Local<v8::Value>> args = { ConvertToV8(isolate, raw)... };
+    holder->Call(holder, args.size(), &args.front());
   }
 };
 
@@ -96,10 +95,10 @@ struct V8FunctionInvoker<ReturnType(ArgTypes...)> {
     v8::Local<v8::Function> holder = function.NewHandle(isolate);
     v8::Local<v8::Context> context = holder->CreationContext();
     v8::Context::Scope context_scope(context);
-    std::vector<v8::Local<v8::Value>> args{ConvertToV8(isolate, raw)...};
+    std::vector<v8::Local<v8::Value>> args = { ConvertToV8(isolate, raw)... };
     v8::Local<v8::Value> result;
-    auto maybe_result = holder->Call(context, holder, args.size(),
-                                     args.empty() ? nullptr : &args.front());
+    auto maybe_result =
+        holder->Call(context, holder, args.size(), &args.front());
     if (maybe_result.ToLocal(&result))
       Converter<ReturnType>::FromV8(isolate, result, &ret);
     return ret;
@@ -108,14 +107,8 @@ struct V8FunctionInvoker<ReturnType(ArgTypes...)> {
 
 // Helper to pass a C++ funtion to JavaScript.
 using Translater = base::Callback<void(Arguments* args)>;
-v8::Local<v8::Value> CreateFunctionFromTranslater(v8::Isolate* isolate,
-                                                  const Translater& translater,
-                                                  bool one_time);
-v8::Local<v8::Value> BindFunctionWith(v8::Isolate* isolate,
-                                      v8::Local<v8::Context> context,
-                                      v8::Local<v8::Function> func,
-                                      v8::Local<v8::Value> arg1,
-                                      v8::Local<v8::Value> arg2);
+v8::Local<v8::Value> CreateFunctionFromTranslater(
+    v8::Isolate* isolate, const Translater& translater);
 
 // Calls callback with Arguments.
 template <typename Sig>
@@ -133,53 +126,27 @@ struct NativeFunctionInvoker<ReturnType(ArgTypes...)> {
 
 }  // namespace internal
 
-template <typename Sig>
-struct Converter<base::OnceCallback<Sig>> {
-  static bool FromV8(v8::Isolate* isolate,
-                     v8::Local<v8::Value> val,
-                     base::OnceCallback<Sig>* out) {
-    if (!val->IsFunction())
-      return false;
-
-    *out = base::BindOnce(&internal::V8FunctionInvoker<Sig>::Go, isolate,
-                          internal::SafeV8Function(isolate, val));
-    return true;
-  }
-};
-
-template <typename Sig>
-struct Converter<base::RepeatingCallback<Sig>> {
+template<typename Sig>
+struct Converter<base::Callback<Sig>> {
   static v8::Local<v8::Value> ToV8(v8::Isolate* isolate,
-                                   const base::RepeatingCallback<Sig>& val) {
+                                   const base::Callback<Sig>& val) {
     // We don't use CreateFunctionTemplate here because it creates a new
     // FunctionTemplate everytime, which is cached by V8 and causes leaks.
-    internal::Translater translater =
-        base::Bind(&internal::NativeFunctionInvoker<Sig>::Go, val);
-    // To avoid memory leak, we ensure that the callback can only be called
-    // for once.
-    return internal::CreateFunctionFromTranslater(isolate, translater, true);
+    internal::Translater translater = base::Bind(
+        &internal::NativeFunctionInvoker<Sig>::Go, val);
+    return internal::CreateFunctionFromTranslater(isolate, translater);
   }
   static bool FromV8(v8::Isolate* isolate,
                      v8::Local<v8::Value> val,
-                     base::RepeatingCallback<Sig>* out) {
+                     base::Callback<Sig>* out) {
     if (!val->IsFunction())
       return false;
 
-    *out = base::BindRepeating(&internal::V8FunctionInvoker<Sig>::Go, isolate,
-                               internal::SafeV8Function(isolate, val));
+    *out = base::Bind(&internal::V8FunctionInvoker<Sig>::Go,
+                      isolate, internal::SafeV8Function(isolate, val));
     return true;
   }
 };
-
-// Convert a callback to V8 without the call number limitation, this can easily
-// cause memory leaks so use it with caution.
-template <typename Sig>
-v8::Local<v8::Value> CallbackToV8(v8::Isolate* isolate,
-                                  const base::Callback<Sig>& val) {
-  internal::Translater translater =
-      base::Bind(&internal::NativeFunctionInvoker<Sig>::Go, val);
-  return internal::CreateFunctionFromTranslater(isolate, translater, false);
-}
 
 }  // namespace mate
 

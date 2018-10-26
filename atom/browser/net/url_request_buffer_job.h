@@ -5,7 +5,6 @@
 #ifndef ATOM_BROWSER_NET_URL_REQUEST_BUFFER_JOB_H_
 #define ATOM_BROWSER_NET_URL_REQUEST_BUFFER_JOB_H_
 
-#include <memory>
 #include <string>
 
 #include "atom/browser/net/js_asker.h"
@@ -15,17 +14,15 @@
 
 namespace atom {
 
-class URLRequestBufferJob : public JsAsker, public net::URLRequestSimpleJob {
+class URLRequestBufferJob : public JsAsker<net::URLRequestSimpleJob> {
  public:
   URLRequestBufferJob(net::URLRequest*, net::NetworkDelegate*);
-  ~URLRequestBufferJob() override;
 
-  void StartAsync(std::unique_ptr<base::Value> options, int error);
+  // JsAsker:
+  void StartAsync(std::unique_ptr<base::Value> options) override;
 
   // URLRequestJob:
-  void Start() override;
   void GetResponseInfo(net::HttpResponseInfo* info) override;
-  void Kill() override;
 
   // URLRequestSimpleJob:
   int GetRefCountedData(std::string* mime_type,
@@ -38,8 +35,6 @@ class URLRequestBufferJob : public JsAsker, public net::URLRequestSimpleJob {
   std::string charset_;
   scoped_refptr<base::RefCountedBytes> data_;
   net::HttpStatusCode status_code_;
-
-  base::WeakPtrFactory<URLRequestBufferJob> weak_factory_;
 
   DISALLOW_COPY_AND_ASSIGN(URLRequestBufferJob);
 };

@@ -4,7 +4,7 @@ process.on('uncaughtException', function (error) {
   process.send(error.stack)
 })
 
-const child = require('child_process').fork(path.join(__dirname, '/ping.js'))
+var child = require('child_process').fork(path.join(__dirname, '/ping.js'))
 process.on('message', function (msg) {
   child.send(msg)
 })

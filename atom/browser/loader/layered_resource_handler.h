@@ -5,10 +5,7 @@
 #ifndef ATOM_BROWSER_LOADER_LAYERED_RESOURCE_HANDLER_H_
 #define ATOM_BROWSER_LOADER_LAYERED_RESOURCE_HANDLER_H_
 
-#include <memory>
-
 #include "content/browser/loader/layered_resource_handler.h"
-#include "services/network/public/cpp/resource_response.h"
 
 namespace atom {
 
@@ -20,7 +17,7 @@ class LayeredResourceHandler : public content::LayeredResourceHandler {
     Delegate() {}
     virtual ~Delegate() {}
 
-    virtual void OnResponseStarted(network::ResourceResponse* response) = 0;
+    virtual void OnResponseStarted(content::ResourceResponse* response) = 0;
   };
 
   LayeredResourceHandler(net::URLRequest* request,
@@ -29,9 +26,8 @@ class LayeredResourceHandler : public content::LayeredResourceHandler {
   ~LayeredResourceHandler() override;
 
   // content::LayeredResourceHandler:
-  void OnResponseStarted(
-      network::ResourceResponse* response,
-      std::unique_ptr<content::ResourceController> controller) override;
+  bool OnResponseStarted(content::ResourceResponse* response,
+                         bool* defer) override;
 
  private:
   Delegate* delegate_;

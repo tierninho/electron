@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
-var version = require('./package').version
+// maintainer note - x.y.z-ab version in package.json -> x.y.z
+var version = require('./package').version.replace(/-.*/, '')
 
 var fs = require('fs')
 var os = require('os')
@@ -17,9 +18,7 @@ try {
 
 var platformPath = getPlatformPath()
 
-var electronPath = process.env.ELECTRON_OVERRIDE_DIST_PATH || path.join(__dirname, 'dist', platformPath)
-
-if (installedVersion === version && fs.existsSync(electronPath)) {
+if (installedVersion === version && fs.existsSync(path.join(__dirname, platformPath))) {
   process.exit(0)
 }
 
@@ -31,13 +30,13 @@ download({
   arch: process.env.npm_config_arch,
   strictSSL: process.env.npm_config_strict_ssl === 'true',
   force: process.env.force_no_cache === 'true',
-  quiet: process.env.npm_config_loglevel === 'silent' || process.env.CI
+  quiet: ['info', 'verbose', 'silly', 'http'].indexOf(process.env.npm_config_loglevel) === -1
 }, extractFile)
 
 // unzips and makes path.txt point at the correct executable
 function extractFile (err, zipPath) {
   if (err) return onerror(err)
-  extract(zipPath, { dir: path.join(__dirname, 'dist') }, function (err) {
+  extract(zipPath, {dir: path.join(__dirname, 'dist')}, function (err) {
     if (err) return onerror(err)
     fs.writeFile(path.join(__dirname, 'path.txt'), platformPath, function (err) {
       if (err) return onerror(err)
@@ -54,12 +53,12 @@ function getPlatformPath () {
 
   switch (platform) {
     case 'darwin':
-      return 'Electron.app/Contents/MacOS/Electron'
+      return 'dist/Electron.app/Contents/MacOS/Electron'
     case 'freebsd':
     case 'linux':
-      return 'electron'
+      return 'dist/electron'
     case 'win32':
-      return 'electron.exe'
+      return 'dist/electron.exe'
     default:
       throw new Error('Electron builds are not available on platform: ' + platform)
   }

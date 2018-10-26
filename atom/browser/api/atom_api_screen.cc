@@ -7,7 +7,6 @@
 #include <algorithm>
 #include <string>
 
-#include "atom/browser/api/atom_api_browser_window.h"
 #include "atom/browser/browser.h"
 #include "atom/common/native_mate_converters/gfx_converter.h"
 #include "base/bind.h"
@@ -16,10 +15,6 @@
 #include "ui/display/display.h"
 #include "ui/display/screen.h"
 #include "ui/gfx/geometry/point.h"
-
-#if defined(OS_WIN)
-#include "ui/display/win/screen_win.h"
-#endif
 
 #include "atom/common/node_includes.h"
 
@@ -30,9 +25,9 @@ namespace api {
 namespace {
 
 // Find an item in container according to its ID.
-template <class T>
+template<class T>
 typename T::iterator FindById(T* container, int id) {
-  auto predicate = [id](const typename T::value_type& item) -> bool {
+  auto predicate = [id] (const typename T::value_type& item) -> bool {
     return item.id() == id;
   };
   return std::find_if(container->begin(), container->end(), predicate);
@@ -84,22 +79,6 @@ display::Display Screen::GetDisplayMatching(const gfx::Rect& match_rect) {
   return screen_->GetDisplayMatching(match_rect);
 }
 
-#if defined(OS_WIN)
-
-static gfx::Rect ScreenToDIPRect(atom::NativeWindow* window,
-                                 const gfx::Rect& rect) {
-  HWND hwnd = window ? window->GetAcceleratedWidget() : nullptr;
-  return display::win::ScreenWin::ScreenToDIPRect(hwnd, rect);
-}
-
-static gfx::Rect DIPToScreenRect(atom::NativeWindow* window,
-                                 const gfx::Rect& rect) {
-  HWND hwnd = window ? window->GetAcceleratedWidget() : nullptr;
-  return display::win::ScreenWin::DIPToScreenRect(hwnd, rect);
-}
-
-#endif
-
 void Screen::OnDisplayAdded(const display::Display& new_display) {
   Emit("display-added", new_display);
 }
@@ -117,14 +96,15 @@ void Screen::OnDisplayMetricsChanged(const display::Display& display,
 v8::Local<v8::Value> Screen::Create(v8::Isolate* isolate) {
   if (!Browser::Get()->is_ready()) {
     isolate->ThrowException(v8::Exception::Error(mate::StringToV8(
-        isolate, "Cannot require \"screen\" module before app is ready")));
+        isolate,
+        "Cannot require \"screen\" module before app is ready")));
     return v8::Null(isolate);
   }
 
   display::Screen* screen = display::Screen::GetScreen();
   if (!screen) {
-    isolate->ThrowException(v8::Exception::Error(
-        mate::StringToV8(isolate, "Failed to get screen information")));
+    isolate->ThrowException(v8::Exception::Error(mate::StringToV8(
+        isolate, "Failed to get screen information")));
     return v8::Null(isolate);
   }
 
@@ -132,20 +112,14 @@ v8::Local<v8::Value> Screen::Create(v8::Isolate* isolate) {
 }
 
 // static
-void Screen::BuildPrototype(v8::Isolate* isolate,
-                            v8::Local<v8::FunctionTemplate> prototype) {
+void Screen::BuildPrototype(
+    v8::Isolate* isolate, v8::Local<v8::FunctionTemplate> prototype) {
   prototype->SetClassName(mate::StringToV8(isolate, "Screen"));
   mate::ObjectTemplateBuilder(isolate, prototype->PrototypeTemplate())
       .SetMethod("getCursorScreenPoint", &Screen::GetCursorScreenPoint)
       .SetMethod("getPrimaryDisplay", &Screen::GetPrimaryDisplay)
       .SetMethod("getAllDisplays", &Screen::GetAllDisplays)
       .SetMethod("getDisplayNearestPoint", &Screen::GetDisplayNearestPoint)
-#if defined(OS_WIN)
-      .SetMethod("screenToDipPoint", &display::win::ScreenWin::ScreenToDIPPoint)
-      .SetMethod("dipToScreenPoint", &display::win::ScreenWin::DIPToScreenPoint)
-      .SetMethod("screenToDipRect", &ScreenToDIPRect)
-      .SetMethod("dipToScreenRect", &DIPToScreenRect)
-#endif
       .SetMethod("getDisplayMatching", &Screen::GetDisplayMatching);
 }
 
@@ -157,10 +131,8 @@ namespace {
 
 using atom::api::Screen;
 
-void Initialize(v8::Local<v8::Object> exports,
-                v8::Local<v8::Value> unused,
-                v8::Local<v8::Context> context,
-                void* priv) {
+void Initialize(v8::Local<v8::Object> exports, v8::Local<v8::Value> unused,
+                v8::Local<v8::Context> context, void* priv) {
   v8::Isolate* isolate = context->GetIsolate();
   mate::Dictionary dict(isolate, exports);
   dict.Set("screen", Screen::Create(isolate));
@@ -169,4 +141,4 @@ void Initialize(v8::Local<v8::Object> exports,
 
 }  // namespace
 
-NODE_BUILTIN_MODULE_CONTEXT_AWARE(atom_common_screen, Initialize)
+NODE_MODULE_CONTEXT_AWARE_BUILTIN(atom_common_screen, Initialize)

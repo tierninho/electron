@@ -14,9 +14,13 @@
 
 namespace atom {
 
-MenuDelegate::MenuDelegate(MenuBar* menu_bar) : menu_bar_(menu_bar), id_(-1) {}
+MenuDelegate::MenuDelegate(MenuBar* menu_bar)
+    : menu_bar_(menu_bar),
+      id_(-1) {
+}
 
-MenuDelegate::~MenuDelegate() {}
+MenuDelegate::~MenuDelegate() {
+}
 
 void MenuDelegate::RunMenu(AtomMenuModel* model, views::MenuButton* button) {
   gfx::Point screen_loc;
@@ -34,9 +38,12 @@ void MenuDelegate::RunMenu(AtomMenuModel* model, views::MenuButton* button) {
   menu_runner_.reset(new views::MenuRunner(
       item,
       views::MenuRunner::CONTEXT_MENU | views::MenuRunner::HAS_MNEMONICS));
-  menu_runner_->RunMenuAt(button->GetWidget()->GetTopLevelWidget(), button,
-                          bounds, views::MENU_ANCHOR_TOPRIGHT,
-                          ui::MENU_SOURCE_MOUSE);
+  ignore_result(menu_runner_->RunMenuAt(
+      button->GetWidget()->GetTopLevelWidget(),
+      button,
+      bounds,
+      views::MENU_ANCHOR_TOPRIGHT,
+      ui::MENU_SOURCE_MOUSE));
 }
 
 void MenuDelegate::ExecuteCommand(int id) {
@@ -88,35 +95,24 @@ void MenuDelegate::WillHideMenu(views::MenuItemView* menu) {
   adapter_->WillHideMenu(menu);
 }
 
-void MenuDelegate::OnMenuClosed(views::MenuItemView* menu) {
-  // Only switch to new menu when current menu is closed.
-  if (button_to_open_)
-    button_to_open_->Activate(nullptr);
-  delete this;
-}
-
 views::MenuItemView* MenuDelegate::GetSiblingMenu(
     views::MenuItemView* menu,
     const gfx::Point& screen_point,
     views::MenuAnchorPosition* anchor,
     bool* has_mnemonics,
     views::MenuButton**) {
-  // TODO(zcbenz): We should follow Chromium's logics on implementing the
-  // sibling menu switches, this code is almost a hack.
   views::MenuButton* button;
   AtomMenuModel* model;
   if (menu_bar_->GetMenuButtonFromScreenPoint(screen_point, &model, &button) &&
       button->tag() != id_) {
-    bool switch_in_progress = !!button_to_open_;
-    // Always update target to open.
-    button_to_open_ = button;
-    // Switching menu asyncnously to avoid crash.
-    if (!switch_in_progress) {
-      content::BrowserThread::PostTask(
-          content::BrowserThread::UI, FROM_HERE,
-          base::Bind(&views::MenuRunner::Cancel,
-                     base::Unretained(menu_runner_.get())));
-    }
+    DCHECK(menu_runner_->IsRunning());
+    menu_runner_->Cancel();
+    // After canceling the menu, we need to wait until next tick
+    // so we are out of nested message loop.
+    content::BrowserThread::PostTask(
+        content::BrowserThread::UI, FROM_HERE,
+        base::Bind(base::IgnoreResult(&views::MenuButton::Activate),
+                   base::Unretained(button), nullptr));
   }
 
   return nullptr;

@@ -51,7 +51,8 @@ namespace api {
 
 BrowserView::BrowserView(v8::Isolate* isolate,
                          v8::Local<v8::Object> wrapper,
-                         const mate::Dictionary& options) {
+                         const mate::Dictionary& options)
+    : api_web_contents_(nullptr) {
   Init(isolate, wrapper, options);
 }
 
@@ -67,8 +68,8 @@ void BrowserView::Init(v8::Isolate* isolate,
   web_contents_.Reset(isolate, web_contents.ToV8());
   api_web_contents_ = web_contents.get();
 
-  view_.reset(
-      NativeBrowserView::Create(api_web_contents_->managed_web_contents()));
+  view_.reset(NativeBrowserView::Create(
+      api_web_contents_->managed_web_contents()->GetView()));
 
   InitWith(isolate, wrapper);
 }
@@ -113,7 +114,7 @@ void BrowserView::SetBackgroundColor(const std::string& color_name) {
   view_->SetBackgroundColor(ParseHexColor(color_name));
 }
 
-v8::Local<v8::Value> BrowserView::GetWebContents() {
+v8::Local<v8::Value> BrowserView::WebContents() {
   if (web_contents_.IsEmpty()) {
     return v8::Null(isolate());
   }
@@ -130,7 +131,7 @@ void BrowserView::BuildPrototype(v8::Isolate* isolate,
       .SetMethod("setAutoResize", &BrowserView::SetAutoResize)
       .SetMethod("setBounds", &BrowserView::SetBounds)
       .SetMethod("setBackgroundColor", &BrowserView::SetBackgroundColor)
-      .SetProperty("webContents", &BrowserView::GetWebContents)
+      .SetProperty("webContents", &BrowserView::WebContents)
       .SetProperty("id", &BrowserView::ID);
 }
 
@@ -151,14 +152,11 @@ void Initialize(v8::Local<v8::Object> exports,
 
   mate::Dictionary browser_view(
       isolate, BrowserView::GetConstructor(isolate)->GetFunction());
-  browser_view.SetMethod("fromId",
-                         &mate::TrackableObject<BrowserView>::FromWeakMapID);
-  browser_view.SetMethod("getAllViews",
-                         &mate::TrackableObject<BrowserView>::GetAll);
+
   mate::Dictionary dict(isolate, exports);
   dict.Set("BrowserView", browser_view);
 }
 
 }  // namespace
 
-NODE_BUILTIN_MODULE_CONTEXT_AWARE(atom_browser_browser_view, Initialize)
+NODE_MODULE_CONTEXT_AWARE_BUILTIN(atom_browser_browser_view, Initialize)

@@ -9,8 +9,8 @@
 #include <memory>
 
 #include "atom/browser/api/trackable_object.h"
+#include "device/power_save_blocker/power_save_blocker.h"
 #include "native_mate/handle.h"
-#include "services/device/wake_lock/power_save_blocker/power_save_blocker.h"
 
 namespace mate {
 class Dictionary;
@@ -33,18 +33,19 @@ class PowerSaveBlocker : public mate::TrackableObject<PowerSaveBlocker> {
 
  private:
   void UpdatePowerSaveBlocker();
-  int Start(device::mojom::WakeLockType type);
+  int Start(device::PowerSaveBlocker::PowerSaveBlockerType type);
   bool Stop(int id);
   bool IsStarted(int id);
 
   std::unique_ptr<device::PowerSaveBlocker> power_save_blocker_;
 
-  // Current blocker type used by |power_save_blocker_|
-  device::mojom::WakeLockType current_blocker_type_;
+  // Currnet blocker type used by |power_save_blocker_|
+  device::PowerSaveBlocker::PowerSaveBlockerType current_blocker_type_;
 
   // Map from id to the corresponding blocker type for each request.
-  using WakeLockTypeMap = std::map<int, device::mojom::WakeLockType>;
-  WakeLockTypeMap power_save_blocker_types_;
+  using PowerSaveBlockerTypeMap =
+      std::map<int, device::PowerSaveBlocker::PowerSaveBlockerType>;
+  PowerSaveBlockerTypeMap power_save_blocker_types_;
 
   DISALLOW_COPY_AND_ASSIGN(PowerSaveBlocker);
 };

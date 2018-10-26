@@ -4,16 +4,11 @@
 
 #include "atom/browser/net/url_request_buffer_job.h"
 
-#include <memory>
 #include <string>
-#include <utility>
 
 #include "atom/common/atom_constants.h"
-#include "atom/common/native_mate_converters/net_converter.h"
-#include "atom/common/native_mate_converters/v8_value_converter.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/utf_string_conversions.h"
-#include "content/public/browser/browser_thread.h"
 #include "net/base/mime_util.h"
 #include "net/base/net_errors.h"
 
@@ -29,67 +24,24 @@ std::string GetExtFromURL(const GURL& url) {
   return spec.substr(index + 1, spec.size() - index - 1);
 }
 
-void BeforeStartInUI(base::WeakPtr<URLRequestBufferJob> job,
-                     mate::Arguments* args) {
-  v8::Local<v8::Value> value;
-  int error = net::OK;
-  std::unique_ptr<base::Value> request_options = nullptr;
-
-  if (args->GetNext(&value)) {
-    V8ValueConverter converter;
-    v8::Local<v8::Context> context = args->isolate()->GetCurrentContext();
-    request_options.reset(converter.FromV8Value(value, context));
-  }
-
-  if (request_options) {
-    JsAsker::IsErrorOptions(request_options.get(), &error);
-  } else {
-    error = net::ERR_NOT_IMPLEMENTED;
-  }
-
-  content::BrowserThread::PostTask(
-      content::BrowserThread::IO, FROM_HERE,
-      base::BindOnce(&URLRequestBufferJob::StartAsync, job,
-                     std::move(request_options), error));
-}
-
 }  // namespace
 
-URLRequestBufferJob::URLRequestBufferJob(net::URLRequest* request,
-                                         net::NetworkDelegate* network_delegate)
-    : net::URLRequestSimpleJob(request, network_delegate),
-      status_code_(net::HTTP_NOT_IMPLEMENTED),
-      weak_factory_(this) {}
-
-URLRequestBufferJob::~URLRequestBufferJob() = default;
-
-void URLRequestBufferJob::Start() {
-  auto request_details = std::make_unique<base::DictionaryValue>();
-  FillRequestDetails(request_details.get(), request());
-  content::BrowserThread::PostTask(
-      content::BrowserThread::UI, FROM_HERE,
-      base::BindOnce(&JsAsker::AskForOptions, base::Unretained(isolate()),
-                     handler(), std::move(request_details),
-                     base::Bind(&BeforeStartInUI, weak_factory_.GetWeakPtr())));
+URLRequestBufferJob::URLRequestBufferJob(
+    net::URLRequest* request, net::NetworkDelegate* network_delegate)
+    : JsAsker<net::URLRequestSimpleJob>(request, network_delegate),
+      status_code_(net::HTTP_NOT_IMPLEMENTED) {
 }
 
-void URLRequestBufferJob::StartAsync(std::unique_ptr<base::Value> options,
-                                     int error) {
-  if (error != net::OK) {
-    NotifyStartError(
-        net::URLRequestStatus(net::URLRequestStatus::FAILED, error));
-    return;
-  }
-
-  const base::Value* binary = nullptr;
-  if (options->is_dict()) {
+void URLRequestBufferJob::StartAsync(std::unique_ptr<base::Value> options) {
+  const base::BinaryValue* binary = nullptr;
+  if (options->IsType(base::Value::TYPE_DICTIONARY)) {
     base::DictionaryValue* dict =
         static_cast<base::DictionaryValue*>(options.get());
     dict->GetString("mimeType", &mime_type_);
     dict->GetString("charset", &charset_);
     dict->GetBinary("data", &binary);
-  } else if (options->is_blob()) {
-    binary = options.get();
+  } else if (options->IsType(base::Value::TYPE_BINARY)) {
+    options->GetAsBinary(&binary);
   }
 
   if (mime_type_.empty()) {
@@ -102,25 +54,20 @@ void URLRequestBufferJob::StartAsync(std::unique_ptr<base::Value> options,
   }
 
   if (!binary) {
-    NotifyStartError(net::URLRequestStatus(net::URLRequestStatus::FAILED,
-                                           net::ERR_NOT_IMPLEMENTED));
+    NotifyStartError(net::URLRequestStatus(
+          net::URLRequestStatus::FAILED, net::ERR_NOT_IMPLEMENTED));
     return;
   }
 
   data_ = new base::RefCountedBytes(
-      reinterpret_cast<const unsigned char*>(binary->GetBlob().data()),
-      binary->GetBlob().size());
+      reinterpret_cast<const unsigned char*>(binary->GetBuffer()),
+      binary->GetSize());
   status_code_ = net::HTTP_OK;
   net::URLRequestSimpleJob::Start();
 }
 
-void URLRequestBufferJob::Kill() {
-  weak_factory_.InvalidateWeakPtrs();
-  net::URLRequestSimpleJob::Kill();
-}
-
 void URLRequestBufferJob::GetResponseInfo(net::HttpResponseInfo* info) {
-  std::string status("HTTP/1.1 200 OK");
+  std::string status("HTTP/1.1 ");
   status.append(base::IntToString(status_code_));
   status.append(" ");
   status.append(net::GetHttpReasonPhrase(status_code_));

@@ -4,9 +4,6 @@
 
 #include "atom/browser/ui/views/submenu_button.h"
 
-#include <memory>
-#include <utility>
-
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "ui/gfx/canvas.h"
@@ -23,17 +20,23 @@ SubmenuButton::SubmenuButton(const base::string16& title,
                              views::MenuButtonListener* menu_button_listener,
                              const SkColor& background_color)
     : views::MenuButton(gfx::RemoveAcceleratorChar(title, '&', NULL, NULL),
-                        menu_button_listener,
-                        false),
+                        menu_button_listener, false),
+      accelerator_(0),
+      show_underline_(false),
+      underline_start_(0),
+      underline_end_(0),
+      text_width_(0),
+      text_height_(0),
+      underline_color_(SK_ColorBLACK),
       background_color_(background_color) {
 #if defined(OS_LINUX)
   // Dont' use native style border.
-  SetBorder(CreateDefaultBorder());
+  SetBorder(std::move(CreateDefaultBorder()));
 #endif
 
   if (GetUnderlinePosition(title, &accelerator_, &underline_start_,
                            &underline_end_))
-    gfx::Canvas::SizeStringInt(GetText(), gfx::FontList(), &text_width_,
+    gfx::Canvas::SizeStringInt(GetText(), GetFontList(), &text_width_,
                                &text_height_, 0, 0);
 
   SetInkDropMode(InkDropMode::ON);
@@ -41,20 +44,23 @@ SubmenuButton::SubmenuButton(const base::string16& title,
       color_utils::BlendTowardOppositeLuma(background_color_, 0x61));
 }
 
-SubmenuButton::~SubmenuButton() {}
+SubmenuButton::~SubmenuButton() {
+}
 
 std::unique_ptr<views::InkDropRipple> SubmenuButton::CreateInkDropRipple()
     const {
   std::unique_ptr<views::InkDropRipple> ripple(
       new views::FloodFillInkDropRipple(
-          size(), GetInkDropCenterBasedOnLastEvent(), GetInkDropBaseColor(),
+          size(),
+          GetInkDropCenterBasedOnLastEvent(),
+          GetInkDropBaseColor(),
           ink_drop_visible_opacity()));
   return ripple;
 }
 
 std::unique_ptr<views::InkDrop> SubmenuButton::CreateInkDrop() {
   std::unique_ptr<views::InkDropImpl> ink_drop =
-      views::Button::CreateDefaultInkDropImpl();
+      CustomButton::CreateDefaultInkDropImpl();
   ink_drop->SetShowHighlightOnHover(false);
   return std::move(ink_drop);
 }
@@ -71,8 +77,8 @@ void SubmenuButton::SetUnderlineColor(SkColor color) {
   underline_color_ = color;
 }
 
-void SubmenuButton::PaintButtonContents(gfx::Canvas* canvas) {
-  views::MenuButton::PaintButtonContents(canvas);
+void SubmenuButton::OnPaint(gfx::Canvas* canvas) {
+  views::MenuButton::OnPaint(canvas);
 
   if (show_underline_ && (underline_start_ != underline_end_)) {
     int padding = (width() - text_width_) / 2;
@@ -85,8 +91,7 @@ void SubmenuButton::PaintButtonContents(gfx::Canvas* canvas) {
 
 bool SubmenuButton::GetUnderlinePosition(const base::string16& text,
                                          base::char16* accelerator,
-                                         int* start,
-                                         int* end) const {
+                                         int* start, int* end) {
   int pos, span;
   base::string16 trimmed = gfx::RemoveAcceleratorChar(text, '&', &pos, &span);
   if (pos > -1 && span != 0) {
@@ -99,12 +104,11 @@ bool SubmenuButton::GetUnderlinePosition(const base::string16& text,
   return false;
 }
 
-void SubmenuButton::GetCharacterPosition(const base::string16& text,
-                                         int index,
-                                         int* pos) const {
+void SubmenuButton::GetCharacterPosition(
+    const base::string16& text, int index, int* pos) {
   int height = 0;
-  gfx::Canvas::SizeStringInt(text.substr(0, index), gfx::FontList(), pos,
-                             &height, 0, 0);
+  gfx::Canvas::SizeStringInt(text.substr(0, index), GetFontList(), pos, &height,
+                             0, 0);
 }
 
 }  // namespace atom

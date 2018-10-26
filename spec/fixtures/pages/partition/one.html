@@ -1,6 +1,4 @@
 <script>
-console.log(JSON.stringify({
-  numberOfEntries: window.localStorage.length,
-  testValue: window.localStorage.getItem('test')
-}));
+const item = window.localStorage.getItem('test');
+console.log([item, window.localStorage.length].join(' '));
 </script>

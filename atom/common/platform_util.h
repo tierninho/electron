@@ -8,7 +8,6 @@
 #include <string>
 
 #include "base/callback_forward.h"
-#include "base/files/file_path.h"
 #include "build/build_config.h"
 
 #if defined(OS_WIN)
@@ -16,6 +15,10 @@
 #endif
 
 class GURL;
+
+namespace base {
+class FilePath;
+}
 
 namespace platform_util {
 
@@ -29,11 +32,6 @@ bool ShowItemInFolder(const base::FilePath& full_path);
 // Must be called from the UI thread.
 bool OpenItem(const base::FilePath& full_path);
 
-struct OpenExternalOptions {
-  bool activate = true;
-  base::FilePath working_dir;
-};
-
 // Open the given external protocol URL in the desktop's default manner.
 // (For example, mailto: URLs in the default mail user agent.)
 bool OpenExternal(
@@ -42,7 +40,7 @@ bool OpenExternal(
 #else
     const GURL& url,
 #endif
-    const OpenExternalOptions& options);
+    bool activate);
 
 // The asynchronous version of OpenExternal.
 void OpenExternal(
@@ -51,18 +49,13 @@ void OpenExternal(
 #else
     const GURL& url,
 #endif
-    const OpenExternalOptions& options,
+    bool activate,
     const OpenExternalCallback& callback);
 
 // Move a file to trash.
 bool MoveItemToTrash(const base::FilePath& full_path);
 
 void Beep();
-
-#if defined(OS_MACOSX)
-bool GetLoginItemEnabled();
-void SetLoginItemEnabled(bool enabled);
-#endif
 
 }  // namespace platform_util
 

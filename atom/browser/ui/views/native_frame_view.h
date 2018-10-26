@@ -15,7 +15,6 @@ class NativeWindow;
 // NativeWindowViews.
 class NativeFrameView : public views::NativeFrameView {
  public:
-  static const char kViewClassName[];
   NativeFrameView(NativeWindow* window, views::Widget* widget);
 
  protected:

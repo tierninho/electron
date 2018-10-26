@@ -4,7 +4,7 @@
     'product_name%': 'Electron',
     'company_name%': 'GitHub, Inc',
     'company_abbr%': 'github',
-    'version%': '1.4.16',
+    'version%': '1.6.18',
     'js2c_input_dir': '<(SHARED_INTERMEDIATE_DIR)/js2c',
   },
   'includes': [
@@ -126,7 +126,17 @@
             'VCManifestTool': {
               'EmbedManifest': 'true',
               'AdditionalManifestFiles': 'atom/browser/resources/win/atom.manifest',
-            }
+            },
+            'VCLinkerTool': {
+              # Chrome builds with this minimum environment which makes e.g.
+              # GetSystemMetrics(SM_CXSIZEFRAME) return Windows XP/2003
+              # compatible metrics. See: https://crbug.com/361720
+              #
+              # The following two settings translate to a linker flag
+              # of /SUBSYSTEM:WINDOWS,5.02
+              'MinimumRequiredVersion': '5.02',
+              'SubSystem': '2',
+            },
           },
           'copies': [
             {
@@ -159,7 +169,6 @@
                 '<(libchromiumcontent_dir)/natives_blob.bin',
                 '<(libchromiumcontent_dir)/snapshot_blob.bin',
                 'external_binaries/d3dcompiler_47.dll',
-                'external_binaries/xinput1_3.dll',
               ],
             },
           ],
@@ -210,6 +219,7 @@
       'type': 'static_library',
       'dependencies': [
         'atom_js2c',
+        'vendor/pdf_viewer/pdf_viewer.gyp:pdf_viewer',
         'vendor/brightray/brightray.gyp:brightray',
         'vendor/node/node.gyp:node',
       ],
@@ -223,8 +233,12 @@
         'GLIB_DISABLE_DEPRECATION_WARNINGS',
         # Defined in Chromium but not exposed in its gyp file.
         'V8_USE_EXTERNAL_STARTUP_DATA',
+        'V8_SHARED',
+        'USING_V8_SHARED',
+        'USING_V8_PLATFORM_SHARED',
+        'USING_V8_BASE_SHARED',
+        # Remove this after enable_plugins becomes a feature flag.
         'ENABLE_PLUGINS',
-        'ENABLE_PEPPER_CDMS',
         'USE_PROPRIETARY_CODECS',
       ],
       'sources': [
@@ -324,6 +338,7 @@
         }],  # OS=="mac" and mas_build==1
         ['OS=="linux"', {
           'sources': [
+            '<@(lib_sources_linux)',
             '<@(lib_sources_nss)',
           ],
           'link_settings': {
@@ -431,11 +446,29 @@
         # depend on this target to ensure the '<(js2c_input_dir)' is created
         'atom_js2c_copy',
       ],
+      'variables': {
+        'sandbox_args': [
+          './lib/sandboxed_renderer/init.js',
+          '-r',
+          './lib/sandboxed_renderer/api/exports/electron.js:electron',
+          '-r',
+          './lib/sandboxed_renderer/api/exports/fs.js:fs',
+          '-r',
+          './lib/sandboxed_renderer/api/exports/os.js:os',
+          '-r',
+          './lib/sandboxed_renderer/api/exports/path.js:path',
+          '-r',
+          './lib/sandboxed_renderer/api/exports/child_process.js:child_process'
+        ],
+        'isolated_args': [
+          'lib/isolated_renderer/init.js',
+        ]
+      },
       'actions': [
         {
           'action_name': 'atom_browserify_sandbox',
           'inputs': [
-            '<@(browserify_entries)',
+            '<!@(python tools/list-browserify-deps.py <(sandbox_args))'
           ],
           'outputs': [
             '<(js2c_input_dir)/preload_bundle.js',
@@ -446,7 +479,7 @@
             '--silent',
             'browserify',
             '--',
-            'lib/sandboxed_renderer/init.js',
+            '<@(sandbox_args)',
             '-o',
             '<@(_outputs)',
           ],
@@ -454,7 +487,7 @@
         {
           'action_name': 'atom_browserify_isolated_context',
           'inputs': [
-            '<@(isolated_context_browserify_entries)',
+            '<!@(python tools/list-browserify-deps.py <(isolated_args))'
           ],
           'outputs': [
             '<(js2c_input_dir)/isolated_bundle.js',
@@ -465,7 +498,7 @@
             '--silent',
             'browserify',
             '--',
-            'lib/isolated_renderer/init.js',
+            '<@(isolated_args)',
             '-o',
             '<@(_outputs)',
           ],
@@ -527,6 +560,8 @@
               '$(SDKROOT)/System/Library/Frameworks/Carbon.framework',
               '$(SDKROOT)/System/Library/Frameworks/QuartzCore.framework',
               '$(SDKROOT)/System/Library/Frameworks/Quartz.framework',
+              '$(SDKROOT)/System/Library/Frameworks/Security.framework',
+              '$(SDKROOT)/System/Library/Frameworks/SecurityInterface.framework',
             ],
           },
           'mac_bundle': 1,
@@ -536,6 +571,7 @@
             '<(libchromiumcontent_dir)/icudtl.dat',
             '<(libchromiumcontent_dir)/natives_blob.bin',
             '<(libchromiumcontent_dir)/snapshot_blob.bin',
+            '<(PRODUCT_DIR)/pdf_viewer_resources.pak',
           ],
           'xcode_settings': {
             'ATOM_BUNDLE_ID': 'com.<(company_abbr).<(project_name).framework',
@@ -580,16 +616,6 @@
                 '-change',
                 '/usr/local/lib/libnode.dylib',
                 '@rpath/libnode.dylib',
-                '${BUILT_PRODUCTS_DIR}/<(product_name) Framework.framework/Versions/A/<(product_name) Framework',
-              ],
-            },
-            {
-              'postbuild_name': 'Fix path of ffmpeg',
-              'action': [
-                'install_name_tool',
-                '-change',
-                '/usr/local/lib/libffmpeg.dylib',
-                '@rpath/libffmpeg.dylib',
                 '${BUILT_PRODUCTS_DIR}/<(product_name) Framework.framework/Versions/A/<(product_name) Framework',
               ],
             },

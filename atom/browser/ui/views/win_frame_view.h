@@ -11,9 +11,8 @@ namespace atom {
 
 class WinFrameView : public FramelessView {
  public:
-  static const char kViewClassName[];
   WinFrameView();
-  ~WinFrameView() override;
+  virtual ~WinFrameView();
 
   // views::NonClientFrameView:
   gfx::Rect GetWindowBoundsForClientBounds(

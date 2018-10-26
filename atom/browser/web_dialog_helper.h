@@ -15,7 +15,7 @@ namespace content {
 struct FileChooserParams;
 class RenderFrameHost;
 class WebContents;
-}  // namespace content
+}
 
 namespace atom {
 
@@ -23,7 +23,7 @@ class NativeWindow;
 
 class WebDialogHelper {
  public:
-  WebDialogHelper(NativeWindow* window, bool offscreen);
+  explicit WebDialogHelper(NativeWindow* window);
   ~WebDialogHelper();
 
   void RunFileChooser(content::RenderFrameHost* render_frame_host,
@@ -34,7 +34,6 @@ class WebDialogHelper {
 
  private:
   NativeWindow* window_;
-  bool offscreen_;
 
   base::WeakPtrFactory<WebDialogHelper> weak_factory_;
 

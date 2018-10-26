@@ -36,7 +36,6 @@ class BrowserView : public mate::TrackableObject<BrowserView> {
   static void BuildPrototype(v8::Isolate* isolate,
                              v8::Local<v8::FunctionTemplate> prototype);
 
-  WebContents* web_contents() const { return api_web_contents_; }
   NativeBrowserView* view() const { return view_.get(); }
 
   int32_t ID() const;
@@ -56,10 +55,10 @@ class BrowserView : public mate::TrackableObject<BrowserView> {
   void SetBounds(const gfx::Rect& bounds);
   void SetBackgroundColor(const std::string& color_name);
 
-  v8::Local<v8::Value> GetWebContents();
+  v8::Local<v8::Value> WebContents();
 
   v8::Global<v8::Value> web_contents_;
-  class WebContents* api_web_contents_ = nullptr;
+  class WebContents* api_web_contents_;
 
   std::unique_ptr<NativeBrowserView> view_;
 

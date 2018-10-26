@@ -6,32 +6,37 @@
 
 namespace atom {
 
-TrayIcon::TrayIcon() {}
+TrayIcon::TrayIcon() {
+}
 
-TrayIcon::~TrayIcon() {}
+TrayIcon::~TrayIcon() {
+}
 
-void TrayIcon::SetPressedImage(ImageType image) {}
+void TrayIcon::SetPressedImage(ImageType image) {
+}
 
-void TrayIcon::SetTitle(const std::string& title) {}
+void TrayIcon::SetTitle(const std::string& title) {
+}
 
-void TrayIcon::SetHighlightMode(TrayIcon::HighlightMode mode) {}
+void TrayIcon::SetHighlightMode(TrayIcon::HighlightMode mode) {
+}
 
 void TrayIcon::DisplayBalloon(ImageType icon,
                               const base::string16& title,
-                              const base::string16& contents) {}
+                              const base::string16& contents) {
+}
 
 void TrayIcon::PopUpContextMenu(const gfx::Point& pos,
-                                AtomMenuModel* menu_model) {}
+                                AtomMenuModel* menu_model) {
+}
 
 gfx::Rect TrayIcon::GetBounds() {
   return gfx::Rect();
 }
 
-void TrayIcon::NotifyClicked(const gfx::Rect& bounds,
-                             const gfx::Point& location,
-                             int modifiers) {
+void TrayIcon::NotifyClicked(const gfx::Rect& bounds, int modifiers) {
   for (TrayIconObserver& observer : observers_)
-    observer.OnClicked(bounds, location, modifiers);
+    observer.OnClicked(bounds, modifiers);
 }
 
 void TrayIcon::NotifyDoubleClicked(const gfx::Rect& bounds, int modifiers) {
@@ -72,21 +77,6 @@ void TrayIcon::NotifyDropFiles(const std::vector<std::string>& files) {
 void TrayIcon::NotifyDropText(const std::string& text) {
   for (TrayIconObserver& observer : observers_)
     observer.OnDropText(text);
-}
-
-void TrayIcon::NotifyMouseEntered(const gfx::Point& location, int modifiers) {
-  for (TrayIconObserver& observer : observers_)
-    observer.OnMouseEntered(location, modifiers);
-}
-
-void TrayIcon::NotifyMouseExited(const gfx::Point& location, int modifiers) {
-  for (TrayIconObserver& observer : observers_)
-    observer.OnMouseExited(location, modifiers);
-}
-
-void TrayIcon::NotifyMouseMoved(const gfx::Point& location, int modifiers) {
-  for (TrayIconObserver& observer : observers_)
-    observer.OnMouseMoved(location, modifiers);
 }
 
 void TrayIcon::NotifyDragEntered() {

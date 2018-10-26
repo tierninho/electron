@@ -5,9 +5,7 @@ to the user. Electron conveniently allows developers to send notifications with
 the [HTML5 Notification API](https://notifications.spec.whatwg.org/), using
 the currently running operating system's native notification APIs to display it.
 
-**Note:** Since this is an HTML5 API it is only available in the renderer process. If
-you want to show Notifications in the main process please check out the
-[Notification](../api/notification.md) module.
+**Note:** Since this is an HTML5 API it is only available in the renderer process.
 
 ```javascript
 let myNotification = new Notification('Title', {
@@ -24,20 +22,12 @@ are subtle differences.
 
 ## Windows
 
-* On Windows 10, a shortcut to your app with an [Application User
-Model ID][app-user-model-id] must be installed to the Start Menu.
-* On Windows 8.1 and Windows 8, a shortcut to your app with an [Application User
-Model ID][app-user-model-id] must be installed to the Start screen. Note,
+* On Windows 10, notifications "just work".
+* On Windows 8.1 and Windows 8, a shortcut to your app, with an [Application User
+Model ID][app-user-model-id], must be installed to the Start screen. Note,
 however, that it does not need to be pinned to the Start screen.
 * On Windows 7, notifications work via a custom implementation which visually
-resembles the native one on newer systems.
-
-Electron attempts to automate the work around the Application User Model ID. When
-Electron is used together with the installation and update framework Squirrel,
-[shortcuts will automatically be set correctly][squirrel-events]. Furthermore,
-Electron will detect that Squirrel was used and will automatically call
-`app.setAppUserModelId()` with the correct value. During development, you may have
-to call [`app.setAppUserModelId()`][[set-app-user-model-id]] yourself.
+ resembles the native one on newer systems.
 
 Furthermore, in Windows 8, the maximum length for the notification body is 250
 characters, with the Windows team recommending that notifications should be kept
@@ -53,7 +43,7 @@ main process or the renderer process), use the userland module
 [electron-windows-notifications](https://github.com/felixrieseberg/electron-windows-notifications),
 which uses native Node addons to send `ToastNotification` and `TileNotification` objects.
 
-While notifications including buttons work with `electron-windows-notifications`,
+While notifications including buttons work with just `electron-windows-notifications`,
 handling replies requires the use of [`electron-windows-interactive-notifications`](https://github.com/felixrieseberg/electron-windows-interactive-notifications), which
 helps with registering the required COM components and calling your Electron app with
 the entered user data.
@@ -69,7 +59,7 @@ the notification away.
 ## macOS
 
 Notifications are straight-forward on macOS, but you should be aware of
-[Apple's Human Interface guidelines regarding notifications](https://developer.apple.com/macos/human-interface-guidelines/system-capabilities/notifications/).
+[Apple's Human Interface guidelines regarding notifications](https://developer.apple.com/library/mac/documentation/UserExperience/Conceptual/OSXHIGuidelines/NotificationCenter.html).
 
 Note that notifications are limited to 256 bytes in size and will be truncated
 if you exceed that limit.
@@ -93,8 +83,3 @@ Notifications are sent using `libnotify` which can show notifications on any
 desktop environment that follows [Desktop Notifications
 Specification][notification-spec], including Cinnamon, Enlightenment, Unity,
 GNOME, KDE.
-
-[notification-spec]: https://developer.gnome.org/notification-spec/
-[app-user-model-id]: https://msdn.microsoft.com/en-us/library/windows/desktop/dd378459(v=vs.85).aspx
-[set-app-user-model-id]: ../api/app.md#appsetappusermodelidid-windows
-[squirrel-events]: https://github.com/electron/windows-installer/blob/master/README.md#handling-squirrel-events

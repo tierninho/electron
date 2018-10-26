@@ -33,13 +33,13 @@ class BluetoothChooser : public content::BluetoothChooser {
                          bool is_gatt_connected,
                          bool is_paired,
                          int signal_strength_level) override;
-  void RemoveDevice(const std::string& device_id);
+  void RemoveDevice(const std::string& device_id) override;
 
  private:
   std::vector<DeviceInfo> device_list_;
   api::WebContents* api_web_contents_;
   EventHandler event_handler_;
-  int num_retries_ = 0;
+  int num_retries_;
 
   DISALLOW_COPY_AND_ASSIGN(BluetoothChooser);
 };

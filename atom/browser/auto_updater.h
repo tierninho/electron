@@ -10,7 +10,6 @@
 
 #include "base/macros.h"
 #include "build/build_config.h"
-#include "native_mate/arguments.h"
 
 namespace base {
 class Time;
@@ -22,10 +21,6 @@ class Delegate {
  public:
   // An error happened.
   virtual void OnError(const std::string& error) {}
-
-  virtual void OnError(const std::string& error,
-                       const int code,
-                       const std::string& domain) {}
 
   // Checking to see if there is an update
   virtual void OnCheckingForUpdate() {}
@@ -55,7 +50,8 @@ class AutoUpdater {
   static void SetDelegate(Delegate* delegate);
 
   static std::string GetFeedURL();
-  static void SetFeedURL(mate::Arguments* args);
+  static void SetFeedURL(const std::string& url,
+                         const HeaderMap& requestHeaders);
   static void CheckForUpdates();
   static void QuitAndInstall();
 

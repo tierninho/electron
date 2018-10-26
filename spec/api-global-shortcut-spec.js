@@ -1,18 +1,12 @@
-const { globalShortcut } = require('electron').remote
+const {globalShortcut} = require('electron').remote
+const assert = require('assert')
 
-const chai = require('chai')
-const dirtyChai = require('dirty-chai')
 const isCI = require('electron').remote.getGlobal('isCi')
 
-const { expect } = chai
-chai.use(dirtyChai)
-
 describe('globalShortcut module', () => {
-  before(function () {
-    if (isCI && process.platform === 'win32') {
-      this.skip()
-    }
-  })
+  if (isCI && process.platform === 'win32') {
+    return
+  }
 
   beforeEach(() => {
     globalShortcut.unregisterAll()
@@ -21,16 +15,16 @@ describe('globalShortcut module', () => {
   it('can register and unregister accelerators', () => {
     const accelerator = 'CommandOrControl+A+B+C'
 
-    expect(globalShortcut.isRegistered(accelerator)).to.be.false()
+    assert.equal(globalShortcut.isRegistered(accelerator), false)
     globalShortcut.register(accelerator, () => {})
-    expect(globalShortcut.isRegistered(accelerator)).to.be.true()
+    assert.equal(globalShortcut.isRegistered(accelerator), true)
     globalShortcut.unregister(accelerator)
-    expect(globalShortcut.isRegistered(accelerator)).to.be.false()
+    assert.equal(globalShortcut.isRegistered(accelerator), false)
 
-    expect(globalShortcut.isRegistered(accelerator)).to.be.false()
+    assert.equal(globalShortcut.isRegistered(accelerator), false)
     globalShortcut.register(accelerator, () => {})
-    expect(globalShortcut.isRegistered(accelerator)).to.be.true()
+    assert.equal(globalShortcut.isRegistered(accelerator), true)
     globalShortcut.unregisterAll()
-    expect(globalShortcut.isRegistered(accelerator)).to.be.false()
+    assert.equal(globalShortcut.isRegistered(accelerator), false)
   })
 })

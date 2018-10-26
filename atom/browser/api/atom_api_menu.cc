@@ -20,15 +20,12 @@ namespace atom {
 namespace api {
 
 Menu::Menu(v8::Isolate* isolate, v8::Local<v8::Object> wrapper)
-    : model_(new AtomMenuModel(this)) {
+    : model_(new AtomMenuModel(this)),
+      parent_(nullptr) {
   InitWith(isolate, wrapper);
-  model_->AddObserver(this);
 }
 
 Menu::~Menu() {
-  if (model_) {
-    model_->RemoveObserver(this);
-  }
 }
 
 void Menu::AfterInit(v8::Isolate* isolate) {
@@ -46,21 +43,15 @@ void Menu::AfterInit(v8::Isolate* isolate) {
 }
 
 bool Menu::IsCommandIdChecked(int command_id) const {
-  v8::Locker locker(isolate());
-  v8::HandleScope handle_scope(isolate());
-  return is_checked_.Run(GetWrapper(), command_id);
+  return is_checked_.Run(command_id);
 }
 
 bool Menu::IsCommandIdEnabled(int command_id) const {
-  v8::Locker locker(isolate());
-  v8::HandleScope handle_scope(isolate());
-  return is_enabled_.Run(GetWrapper(), command_id);
+  return is_enabled_.Run(command_id);
 }
 
 bool Menu::IsCommandIdVisible(int command_id) const {
-  v8::Locker locker(isolate());
-  v8::HandleScope handle_scope(isolate());
-  return is_visible_.Run(GetWrapper(), command_id);
+  return is_visible_.Run(command_id);
 }
 
 bool Menu::GetAcceleratorForCommandIdWithParams(
@@ -69,28 +60,23 @@ bool Menu::GetAcceleratorForCommandIdWithParams(
     ui::Accelerator* accelerator) const {
   v8::Locker locker(isolate());
   v8::HandleScope handle_scope(isolate());
-  v8::Local<v8::Value> val =
-      get_accelerator_.Run(GetWrapper(), command_id, use_default_accelerator);
+  v8::Local<v8::Value> val = get_accelerator_.Run(
+      command_id, use_default_accelerator);
   return mate::ConvertFromV8(isolate(), val, accelerator);
 }
 
 void Menu::ExecuteCommand(int command_id, int flags) {
-  v8::Locker locker(isolate());
-  v8::HandleScope handle_scope(isolate());
-  execute_command_.Run(GetWrapper(),
-                       mate::internal::CreateEventFromFlags(isolate(), flags),
-                       command_id);
+  execute_command_.Run(
+      mate::internal::CreateEventFromFlags(isolate(), flags),
+      command_id);
 }
 
 void Menu::MenuWillShow(ui::SimpleMenuModel* source) {
-  v8::Locker locker(isolate());
-  v8::HandleScope handle_scope(isolate());
-  menu_will_show_.Run(GetWrapper());
+  menu_will_show_.Run();
 }
 
-void Menu::InsertItemAt(int index,
-                        int command_id,
-                        const base::string16& label) {
+void Menu::InsertItemAt(
+    int index, int command_id, const base::string16& label) {
   model_->InsertItemAt(index, command_id, label);
 }
 
@@ -167,14 +153,6 @@ bool Menu::IsVisibleAt(int index) const {
   return model_->IsVisibleAt(index);
 }
 
-void Menu::OnMenuWillClose() {
-  Emit("menu-will-close");
-}
-
-void Menu::OnMenuWillShow() {
-  Emit("menu-will-show");
-}
-
 // static
 void Menu::BuildPrototype(v8::Isolate* isolate,
                           v8::Local<v8::FunctionTemplate> prototype) {
@@ -206,14 +184,13 @@ void Menu::BuildPrototype(v8::Isolate* isolate,
 
 }  // namespace atom
 
+
 namespace {
 
 using atom::api::Menu;
 
-void Initialize(v8::Local<v8::Object> exports,
-                v8::Local<v8::Value> unused,
-                v8::Local<v8::Context> context,
-                void* priv) {
+void Initialize(v8::Local<v8::Object> exports, v8::Local<v8::Value> unused,
+                v8::Local<v8::Context> context, void* priv) {
   v8::Isolate* isolate = context->GetIsolate();
   Menu::SetConstructor(isolate, base::Bind(&Menu::New));
 
@@ -228,4 +205,4 @@ void Initialize(v8::Local<v8::Object> exports,
 
 }  // namespace
 
-NODE_BUILTIN_MODULE_CONTEXT_AWARE(atom_browser_menu, Initialize)
+NODE_MODULE_CONTEXT_AWARE_BUILTIN(atom_browser_menu, Initialize)

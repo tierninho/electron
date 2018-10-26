@@ -20,15 +20,15 @@
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
-#include "base/threading/thread_restrictions.h"
 #include "base/win/registry.h"
 #include "base/win/win_util.h"
 #include "base/win/windows_version.h"
-#include "brightray/common/application_info.h"
 
 namespace atom {
 
 namespace {
+
+const wchar_t kAppUserModelIDFormat[] = L"electron.app.$1";
 
 BOOL CALLBACK WindowsEnumerationHandler(HWND hwnd, LPARAM param) {
   DWORD target_process_id = *reinterpret_cast<DWORD*>(param);
@@ -45,7 +45,7 @@ BOOL CALLBACK WindowsEnumerationHandler(HWND hwnd, LPARAM param) {
 
 bool GetProcessExecPath(base::string16* exe) {
   base::FilePath path;
-  if (!base::PathService::Get(base::FILE_EXE, &path)) {
+  if (!PathService::Get(base::FILE_EXE, &path)) {
     LOG(ERROR) << "Error getting app exe path";
     return false;
   }
@@ -61,7 +61,8 @@ bool GetProtocolLaunchPath(mate::Arguments* args, base::string16* exe) {
   // Read in optional args arg
   std::vector<base::string16> launch_args;
   if (args->GetNext(&launch_args) && !launch_args.empty())
-    *exe = base::StringPrintf(L"\"%ls\" %ls \"%%1\"", exe->c_str(),
+    *exe = base::StringPrintf(L"\"%ls\" %ls \"%%1\"",
+                              exe->c_str(),
                               base::JoinString(launch_args, L" ").c_str());
   else
     *exe = base::StringPrintf(L"\"%ls\" \"%%1\"", exe->c_str());
@@ -75,7 +76,8 @@ bool FormatCommandLineString(base::string16* exe,
   }
 
   if (!launch_args.empty()) {
-    *exe = base::StringPrintf(L"%ls %ls", exe->c_str(),
+    *exe = base::StringPrintf(L"%ls %ls",
+                              exe->c_str(),
                               base::JoinString(launch_args, L" ").c_str());
   }
 
@@ -83,10 +85,6 @@ bool FormatCommandLineString(base::string16* exe,
 }
 
 }  // namespace
-
-Browser::UserTask::UserTask() = default;
-Browser::UserTask::UserTask(const UserTask&) = default;
-Browser::UserTask::~UserTask() = default;
 
 void Browser::Focus() {
   // On Windows we just focus on the first window found for this process.
@@ -99,8 +97,8 @@ void Browser::AddRecentDocument(const base::FilePath& path) {
     return;
 
   CComPtr<IShellItem> item;
-  HRESULT hr = SHCreateItemFromParsingName(path.value().c_str(), NULL,
-                                           IID_PPV_ARGS(&item));
+  HRESULT hr = SHCreateItemFromParsingName(
+      path.value().c_str(), NULL, IID_PPV_ARGS(&item));
   if (SUCCEEDED(hr)) {
     SHARDAPPIDINFO info;
     info.psi = item;
@@ -111,8 +109,8 @@ void Browser::AddRecentDocument(const base::FilePath& path) {
 
 void Browser::ClearRecentDocuments() {
   CComPtr<IApplicationDestinations> destinations;
-  if (FAILED(destinations.CoCreateInstance(CLSID_ApplicationDestinations, NULL,
-                                           CLSCTX_INPROC_SERVER)))
+  if (FAILED(destinations.CoCreateInstance(CLSID_ApplicationDestinations,
+                                           NULL, CLSCTX_INPROC_SERVER)))
     return;
   if (FAILED(destinations->SetAppID(GetAppUserModelID())))
     return;
@@ -120,7 +118,8 @@ void Browser::ClearRecentDocuments() {
 }
 
 void Browser::SetAppUserModelID(const base::string16& name) {
-  brightray::SetAppUserModelID(name);
+  app_user_model_id_ = name;
+  SetCurrentProcessExplicitAppUserModelID(app_user_model_id_.c_str());
 }
 
 bool Browser::SetUserTasks(const std::vector<UserTask>& tasks) {
@@ -154,19 +153,15 @@ bool Browser::RemoveAsDefaultProtocolClient(const std::string& protocol,
 
   // Main Registry Key
   HKEY root = HKEY_CURRENT_USER;
-  base::string16 keyPath = L"Software\\Classes\\";
+  base::string16 keyPath = base::UTF8ToUTF16("Software\\Classes\\" + protocol);
 
   // Command Key
-  base::string16 wprotocol = base::UTF8ToUTF16(protocol);
-  base::string16 shellPath = wprotocol + L"\\shell";
-  base::string16 cmdPath = keyPath + shellPath + L"\\open\\command";
+  base::string16 cmdPath = keyPath + L"\\shell\\open\\command";
 
-  base::win::RegKey classesKey;
+  base::win::RegKey key;
   base::win::RegKey commandKey;
-
-  if (FAILED(classesKey.Open(root, keyPath.c_str(), KEY_ALL_ACCESS)))
-    // Classes key doesn't exist, that's concerning, but I guess
-    // we're not the default handler
+  if (FAILED(key.Open(root, keyPath.c_str(), KEY_ALL_ACCESS)))
+    // Key doesn't even exist, we can confirm that it is not set
     return true;
 
   if (FAILED(commandKey.Open(root, cmdPath.c_str(), KEY_ALL_ACCESS)))
@@ -184,24 +179,8 @@ bool Browser::RemoveAsDefaultProtocolClient(const std::string& protocol,
 
   if (keyVal == exe) {
     // Let's kill the key
-    if (FAILED(classesKey.DeleteKey(shellPath.c_str())))
+    if (FAILED(key.DeleteKey(L"shell")))
       return false;
-
-    // Let's clean up after ourselves
-    base::win::RegKey protocolKey;
-    base::string16 protocolPath = keyPath + wprotocol;
-
-    if (SUCCEEDED(
-            protocolKey.Open(root, protocolPath.c_str(), KEY_ALL_ACCESS))) {
-      protocolKey.DeleteValue(L"URL Protocol");
-
-      // Overwrite the default value to be empty, we can't delete it right away
-      protocolKey.WriteValue(L"", L"");
-      protocolKey.DeleteValue(L"");
-    }
-
-    // If now empty, delete the whole key
-    classesKey.DeleteEmptyKey(wprotocol.c_str());
 
     return true;
   } else {
@@ -210,7 +189,7 @@ bool Browser::RemoveAsDefaultProtocolClient(const std::string& protocol,
 }
 
 bool Browser::SetAsDefaultProtocolClient(const std::string& protocol,
-                                         mate::Arguments* args) {
+                                        mate::Arguments* args) {
   // HKEY_CLASSES_ROOT
   //    $PROTOCOL
   //       (Default) = "URL:$NAME"
@@ -324,13 +303,17 @@ Browser::LoginItemSettings Browser::GetLoginItemSettings(
 }
 
 PCWSTR Browser::GetAppUserModelID() {
-  return brightray::GetRawAppUserModelID();
+  if (app_user_model_id_.empty()) {
+    SetAppUserModelID(base::ReplaceStringPlaceholders(
+        kAppUserModelIDFormat, base::UTF8ToUTF16(GetName()), nullptr));
+  }
+
+  return app_user_model_id_.c_str();
 }
 
 std::string Browser::GetExecutableFileVersion() const {
   base::FilePath path;
-  if (base::PathService::Get(base::FILE_EXE, &path)) {
-    base::ThreadRestrictions::ScopedAllowIO allow_io;
+  if (PathService::Get(base::FILE_EXE, &path)) {
     std::unique_ptr<FileVersionInfo> version_info(
         FileVersionInfo::CreateFileVersionInfo(path));
     return base::UTF16ToUTF8(version_info->product_version());
@@ -340,7 +323,14 @@ std::string Browser::GetExecutableFileVersion() const {
 }
 
 std::string Browser::GetExecutableFileProductName() const {
-  return brightray::GetApplicationName();
+  base::FilePath path;
+  if (PathService::Get(base::FILE_EXE, &path)) {
+    std::unique_ptr<FileVersionInfo> version_info(
+        FileVersionInfo::CreateFileVersionInfo(path));
+    return base::UTF16ToUTF8(version_info->product_name());
+  }
+
+  return ATOM_PRODUCT_NAME;
 }
 
 }  // namespace atom

@@ -33,8 +33,8 @@ class FileSelectHelper : public base::RefCounted<FileSelectHelper>,
   FileSelectHelper(content::RenderFrameHost* render_frame_host,
                    const content::FileChooserParams::Mode& mode)
       : render_frame_host_(render_frame_host), mode_(mode) {
-    auto* web_contents =
-        content::WebContents::FromRenderFrameHost(render_frame_host);
+    auto web_contents = content::WebContents::FromRenderFrameHost(
+        render_frame_host);
     content::WebContentsObserver::Observe(web_contents);
   }
 
@@ -53,14 +53,7 @@ class FileSelectHelper : public base::RefCounted<FileSelectHelper>,
 
   ~FileSelectHelper() override {}
 
-#if defined(MAS_BUILD)
-  void OnOpenDialogDone(bool result,
-                        const std::vector<base::FilePath>& paths,
-                        const std::vector<std::string>& bookmarks)
-#else
-  void OnOpenDialogDone(bool result, const std::vector<base::FilePath>& paths)
-#endif
-  {
+  void OnOpenDialogDone(bool result, const std::vector<base::FilePath>& paths) {
     std::vector<content::FileChooserFileInfo> file_info;
     if (result) {
       for (auto& path : paths) {
@@ -71,7 +64,7 @@ class FileSelectHelper : public base::RefCounted<FileSelectHelper>,
       }
 
       if (render_frame_host_ && !paths.empty()) {
-        auto* browser_context = static_cast<atom::AtomBrowserContext*>(
+        auto browser_context = static_cast<atom::AtomBrowserContext*>(
             render_frame_host_->GetProcess()->GetBrowserContext());
         browser_context->prefs()->SetFilePath(prefs::kSelectFileLastDirectory,
                                               paths[0].DirName());
@@ -80,14 +73,7 @@ class FileSelectHelper : public base::RefCounted<FileSelectHelper>,
     OnFilesSelected(file_info);
   }
 
-#if defined(MAS_BUILD)
-  void OnSaveDialogDone(bool result,
-                        const base::FilePath& path,
-                        const std::string& bookmark)
-#else
-  void OnSaveDialogDone(bool result, const base::FilePath& path)
-#endif
-  {
+  void OnSaveDialogDone(bool result, const base::FilePath& path) {
     std::vector<content::FileChooserFileInfo> file_info;
     if (result) {
       content::FileChooserFileInfo info;
@@ -118,7 +104,9 @@ class FileSelectHelper : public base::RefCounted<FileSelectHelper>,
   }
 
   // content::WebContentsObserver:
-  void WebContentsDestroyed() override { render_frame_host_ = nullptr; }
+  void WebContentsDestroyed() override {
+    render_frame_host_ = nullptr;
+  }
 
   content::RenderFrameHost* render_frame_host_;
   content::FileChooserParams::Mode mode_;
@@ -132,34 +120,19 @@ file_dialog::Filters GetFileTypesFromAcceptType(
 
   std::vector<base::FilePath::StringType> extensions;
 
-  int valid_type_count = 0;
-  std::string description;
-
   for (const auto& accept_type : accept_types) {
     std::string ascii_type = base::UTF16ToASCII(accept_type);
-    auto old_extension_size = extensions.size();
-
     if (ascii_type[0] == '.') {
       // If the type starts with a period it is assumed to be a file extension,
       // like `.txt`, // so we just have to add it to the list.
-      base::FilePath::StringType extension(ascii_type.begin(),
-                                           ascii_type.end());
+      base::FilePath::StringType extension(
+          ascii_type.begin(), ascii_type.end());
       // Skip the first character.
       extensions.push_back(extension.substr(1));
     } else {
-      if (ascii_type == "image/*")
-        description = "Image Files";
-      else if (ascii_type == "audio/*")
-        description = "Audio Files";
-      else if (ascii_type == "video/*")
-        description = "Video Files";
-
-      // For MIME Type, `audio/*, video/*, image/*
+      // For MIME Type, `audio/*, vidio/*, image/*
       net::GetExtensionsForMimeType(ascii_type, &extensions);
     }
-
-    if (extensions.size() > old_extension_size)
-      valid_type_count++;
   }
 
   // If no valid exntesion is added, return empty filters.
@@ -167,13 +140,6 @@ file_dialog::Filters GetFileTypesFromAcceptType(
     return filters;
 
   filters.push_back(file_dialog::Filter());
-
-  if (valid_type_count > 1 || (valid_type_count == 1 && description.empty()))
-    description = "Custom Files";
-
-  DCHECK(!description.empty());
-  filters[0].first = description;
-
   for (const auto& extension : extensions) {
 #if defined(OS_WIN)
     filters[0].second.push_back(base::UTF16ToASCII(extension));
@@ -181,12 +147,6 @@ file_dialog::Filters GetFileTypesFromAcceptType(
     filters[0].second.push_back(extension);
 #endif
   }
-
-  // Allow all files when extension is specified.
-  filters.push_back(file_dialog::Filter());
-  filters.back().first = "All Files";
-  filters.back().second.push_back("*");
-
   return filters;
 }
 
@@ -194,10 +154,14 @@ file_dialog::Filters GetFileTypesFromAcceptType(
 
 namespace atom {
 
-WebDialogHelper::WebDialogHelper(NativeWindow* window, bool offscreen)
-    : window_(window), offscreen_(offscreen), weak_factory_(this) {}
+WebDialogHelper::WebDialogHelper(NativeWindow* window)
+    : window_(window),
+      weak_factory_(this) {
+}
 
-WebDialogHelper::~WebDialogHelper() {}
+WebDialogHelper::~WebDialogHelper() {
+}
+
 
 void WebDialogHelper::RunFileChooser(
     content::RenderFrameHost* render_frame_host,
@@ -205,7 +169,6 @@ void WebDialogHelper::RunFileChooser(
   std::vector<content::FileChooserFileInfo> result;
 
   file_dialog::DialogSettings settings;
-  settings.force_detached = offscreen_;
   settings.filters = GetFileTypesFromAcceptType(params.accept_types);
   settings.parent_window = window_;
   settings.title = base::UTF16ToUTF8(params.title);
@@ -220,10 +183,8 @@ void WebDialogHelper::RunFileChooser(
     switch (params.mode) {
       case content::FileChooserParams::OpenMultiple:
         flags |= file_dialog::FILE_DIALOG_MULTI_SELECTIONS;
-        FALLTHROUGH;
       case content::FileChooserParams::Open:
         flags |= file_dialog::FILE_DIALOG_OPEN_FILE;
-        flags |= file_dialog::FILE_DIALOG_TREAT_PACKAGE_APP_AS_DIRECTORY;
         break;
       case content::FileChooserParams::UploadFolder:
         flags |= file_dialog::FILE_DIALOG_OPEN_DIRECTORY;
@@ -232,11 +193,10 @@ void WebDialogHelper::RunFileChooser(
         NOTREACHED();
     }
 
-    auto* browser_context = static_cast<atom::AtomBrowserContext*>(
-        render_frame_host->GetProcess()->GetBrowserContext());
-    settings.default_path = browser_context->prefs()
-                                ->GetFilePath(prefs::kSelectFileLastDirectory)
-                                .Append(params.default_file_name);
+    AtomBrowserContext* browser_context = static_cast<AtomBrowserContext*>(
+        window_->web_contents()->GetBrowserContext());
+    settings.default_path = browser_context->prefs()->GetFilePath(
+        prefs::kSelectFileLastDirectory).Append(params.default_file_name);
     settings.properties = flags;
     file_select_helper->ShowOpenDialog(settings);
   }
@@ -245,7 +205,8 @@ void WebDialogHelper::RunFileChooser(
 void WebDialogHelper::EnumerateDirectory(content::WebContents* web_contents,
                                          int request_id,
                                          const base::FilePath& dir) {
-  int types = base::FileEnumerator::FILES | base::FileEnumerator::DIRECTORIES |
+  int types = base::FileEnumerator::FILES |
+              base::FileEnumerator::DIRECTORIES |
               base::FileEnumerator::INCLUDE_DOT_DOT;
   base::FileEnumerator file_enum(dir, false, types);
 
@@ -254,8 +215,8 @@ void WebDialogHelper::EnumerateDirectory(content::WebContents* web_contents,
   while (!(path = file_enum.Next()).empty())
     paths.push_back(path);
 
-  web_contents->GetRenderViewHost()->DirectoryEnumerationFinished(request_id,
-                                                                  paths);
+  web_contents->GetRenderViewHost()->DirectoryEnumerationFinished(
+      request_id, paths);
 }
 
 }  // namespace atom

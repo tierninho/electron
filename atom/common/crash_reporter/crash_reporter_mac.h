@@ -5,20 +5,17 @@
 #ifndef ATOM_COMMON_CRASH_REPORTER_CRASH_REPORTER_MAC_H_
 #define ATOM_COMMON_CRASH_REPORTER_CRASH_REPORTER_MAC_H_
 
-#include <map>
-#include <memory>
 #include <string>
 #include <vector>
 
 #include "atom/common/crash_reporter/crash_reporter.h"
 #include "base/compiler_specific.h"
 #include "base/strings/string_piece.h"
-#include "crashpad/client/crash_report_database.h"
-#include "crashpad/client/simple_string_dictionary.h"
+#include "vendor/crashpad/client/crash_report_database.h"
+#include "vendor/crashpad/client/simple_string_dictionary.h"
 
 namespace base {
-template <typename T>
-struct DefaultSingletonTraits;
+template <typename T> struct DefaultSingletonTraits;
 }
 
 namespace crash_reporter {
@@ -37,16 +34,15 @@ class CrashReporterMac : public CrashReporter {
   void SetUploadParameters() override;
   void SetUploadToServer(bool upload_to_server) override;
   bool GetUploadToServer() override;
-  void AddExtraParameter(const std::string& key,
+  void SetExtraParameter(const std::string& key,
                          const std::string& value) override;
   void RemoveExtraParameter(const std::string& key) override;
-  std::map<std::string, std::string> GetParameters() const override;
 
  private:
   friend struct base::DefaultSingletonTraits<CrashReporterMac>;
 
   CrashReporterMac();
-  ~CrashReporterMac() override;
+  virtual ~CrashReporterMac();
 
   void SetUploadsEnabled(bool enable_uploads);
   void SetCrashKeyValue(const base::StringPiece& key,

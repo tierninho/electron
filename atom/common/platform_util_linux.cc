@@ -19,7 +19,8 @@
 
 namespace {
 
-bool XDGUtilV(const std::vector<std::string>& argv, const bool wait_for_exit) {
+bool XDGUtilV(const std::vector<std::string>& argv,
+             const bool wait_for_exit) {
   base::LaunchOptions options;
   options.allow_new_privs = true;
   // xdg-open can fall back on mailcap which eventually might plumb through
@@ -32,15 +33,16 @@ bool XDGUtilV(const std::vector<std::string>& argv, const bool wait_for_exit) {
   if (!process.IsValid())
     return false;
 
-  if (wait_for_exit) {
-    int exit_code = -1;
-    if (!process.WaitForExit(&exit_code))
-      return false;
-    return (exit_code == 0);
+  if (!wait_for_exit) {
+    base::EnsureProcessGetsReaped(process.Pid());
+    return true;
   }
 
-  base::EnsureProcessGetsReaped(std::move(process));
-  return true;
+  int exit_code = -1;
+  if (!process.WaitForExit(&exit_code))
+    return false;
+
+  return (exit_code == 0);
 }
 
 bool XDGUtil(const std::string& util,
@@ -73,14 +75,14 @@ bool ShowItemInFolder(const base::FilePath& full_path) {
   if (!base::DirectoryExists(dir))
     return false;
 
-  return XDGOpen(dir.value(), false);
+  return XDGOpen(dir.value(), true);
 }
 
 bool OpenItem(const base::FilePath& full_path) {
-  return XDGOpen(full_path.value(), false);
+  return XDGOpen(full_path.value(), true);
 }
 
-bool OpenExternal(const GURL& url, const OpenExternalOptions& options) {
+bool OpenExternal(const GURL& url, bool activate) {
   // Don't wait for exit, since we don't want to wait for the browser/email
   // client window to close before returning
   if (url.SchemeIs("mailto"))
@@ -89,11 +91,10 @@ bool OpenExternal(const GURL& url, const OpenExternalOptions& options) {
     return XDGOpen(url.spec(), false);
 }
 
-void OpenExternal(const GURL& url,
-                  const OpenExternalOptions& options,
+void OpenExternal(const GURL& url, bool activate,
                   const OpenExternalCallback& callback) {
   // TODO(gabriel): Implement async open if callback is specified
-  callback.Run(OpenExternal(url, options) ? "" : "Failed to open");
+  callback.Run(OpenExternal(url, activate) ? "" : "Failed to open");
 }
 
 bool MoveItemToTrash(const base::FilePath& full_path) {
@@ -124,10 +125,6 @@ bool MoveItemToTrash(const base::FilePath& full_path) {
     argv.push_back("trash:/");
   } else if (trash.compare("trash-cli") == 0) {
     argv.push_back("trash-put");
-    argv.push_back(full_path.value());
-  } else if (trash.compare("gio") == 0) {
-    argv.push_back("gio");
-    argv.push_back("trash");
     argv.push_back(full_path.value());
   } else {
     argv.push_back(ELECTRON_DEFAULT_TRASH);

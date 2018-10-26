@@ -18,13 +18,12 @@
 
 namespace mate {
 
-template <>
+template<>
 struct Converter<base::win::ShortcutOperation> {
-  static bool FromV8(v8::Isolate* isolate,
-                     v8::Handle<v8::Value> val,
+  static bool FromV8(v8::Isolate* isolate, v8::Handle<v8::Value> val,
                      base::win::ShortcutOperation* out) {
     std::string operation;
-    if (!ConvertFromV8(isolate, val, &operation))
+    if (!ConvertFromV8(isolate, val, & operation))
       return false;
     if (operation.empty() || operation == "create")
       *out = base::win::SHORTCUT_CREATE_ALWAYS;
@@ -60,12 +59,11 @@ bool OpenExternal(
     const GURL& url,
 #endif
     mate::Arguments* args) {
-  platform_util::OpenExternalOptions options;
+  bool activate = true;
   if (args->Length() >= 2) {
-    mate::Dictionary obj;
-    if (args->GetNext(&obj)) {
-      obj.Get("activate", &options.activate);
-      obj.Get("workingDirectory", &options.working_dir);
+    mate::Dictionary options;
+    if (args->GetNext(&options)) {
+      options.Get("activate", &activate);
     }
   }
 
@@ -73,13 +71,13 @@ bool OpenExternal(
     base::Callback<void(v8::Local<v8::Value>)> callback;
     if (args->GetNext(&callback)) {
       platform_util::OpenExternal(
-          url, options,
+          url, activate,
           base::Bind(&OnOpenExternalFinished, args->isolate(), callback));
       return true;
     }
   }
 
-  return platform_util::OpenExternal(url, options);
+  return platform_util::OpenExternal(url, activate);
 }
 
 #if defined(OS_WIN)
@@ -111,8 +109,8 @@ bool WriteShortcutLink(const base::FilePath& shortcut_path,
     properties.set_app_id(str);
 
   base::win::ScopedCOMInitializer com_initializer;
-  return base::win::CreateOrUpdateShortcutLink(shortcut_path, properties,
-                                               operation);
+  return base::win::CreateOrUpdateShortcutLink(
+      shortcut_path, properties, operation);
 }
 
 v8::Local<v8::Value> ReadShortcutLink(mate::Arguments* args,
@@ -137,10 +135,8 @@ v8::Local<v8::Value> ReadShortcutLink(mate::Arguments* args,
 }
 #endif
 
-void Initialize(v8::Local<v8::Object> exports,
-                v8::Local<v8::Value> unused,
-                v8::Local<v8::Context> context,
-                void* priv) {
+void Initialize(v8::Local<v8::Object> exports, v8::Local<v8::Value> unused,
+                v8::Local<v8::Context> context, void* priv) {
   mate::Dictionary dict(context->GetIsolate(), exports);
   dict.SetMethod("showItemInFolder", &platform_util::ShowItemInFolder);
   dict.SetMethod("openItem", &platform_util::OpenItem);
@@ -155,4 +151,4 @@ void Initialize(v8::Local<v8::Object> exports,
 
 }  // namespace
 
-NODE_BUILTIN_MODULE_CONTEXT_AWARE(atom_common_shell, Initialize)
+NODE_MODULE_CONTEXT_AWARE_BUILTIN(atom_common_shell, Initialize)

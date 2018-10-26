@@ -1,122 +1,101 @@
 const assert = require('assert')
-const chai = require('chai')
-const dirtyChai = require('dirty-chai')
 const fs = require('fs')
 const http = require('http')
 const path = require('path')
 const ws = require('ws')
 const url = require('url')
-const ChildProcess = require('child_process')
-const { ipcRenderer, remote } = require('electron')
-const { closeWindow } = require('./window-helpers')
-const { resolveGetters } = require('./assert-helpers')
-const { app, BrowserWindow, ipcMain, protocol, session, webContents } = remote
+const {ipcRenderer, remote, webFrame} = require('electron')
+const {closeWindow} = require('./window-helpers')
+
+const {app, BrowserWindow, ipcMain, protocol, session, webContents} = remote
+
 const isCI = remote.getGlobal('isCi')
-const features = process.atomBinding('features')
 
-const { expect } = chai
-chai.use(dirtyChai)
-
-/* Most of the APIs here don't use standard callbacks */
-/* eslint-disable standard/no-callback-literal */
-
-describe('chromium feature', () => {
-  const fixtures = path.resolve(__dirname, 'fixtures')
-  let listener = null
+describe('chromium feature', function () {
+  var fixtures = path.resolve(__dirname, 'fixtures')
+  var listener = null
   let w = null
 
-  afterEach(() => {
+  afterEach(function () {
     if (listener != null) {
       window.removeEventListener('message', listener)
     }
     listener = null
   })
 
-  describe('command line switches', () => {
-    describe('--lang switch', () => {
-      const currentLocale = app.getLocale()
-      const testLocale = (locale, result, done) => {
-        const appPath = path.join(__dirname, 'fixtures', 'api', 'locale-check')
-        const electronPath = remote.getGlobal('process').execPath
-        let output = ''
-        const appProcess = ChildProcess.spawn(electronPath, [appPath, `--lang=${locale}`])
-
-        appProcess.stdout.on('data', (data) => { output += data })
-        appProcess.stdout.on('end', () => {
-          output = output.replace(/(\r\n|\n|\r)/gm, '')
-          assert.strictEqual(output, result)
-          done()
-        })
-      }
-
-      it('should set the locale', (done) => testLocale('fr', 'fr', done))
-      it('should not set an invalid locale', (done) => testLocale('asdfkl', currentLocale, done))
-    })
+  afterEach(function () {
+    return closeWindow(w).then(function () { w = null })
   })
 
-  afterEach(() => closeWindow(w).then(() => { w = null }))
-
-  describe('heap snapshot', () => {
+  describe('heap snapshot', function () {
     it('does not crash', function () {
+      if (process.env.TRAVIS === 'true') return
       process.atomBinding('v8_util').takeHeapSnapshot()
     })
   })
 
-  describe('sending request of http protocol urls', () => {
-    it('does not crash', (done) => {
-      const server = http.createServer((req, res) => {
+  describe('sending request of http protocol urls', function () {
+    it('does not crash', function (done) {
+      var server = http.createServer(function (req, res) {
         res.end()
         server.close()
         done()
       })
-      server.listen(0, '127.0.0.1', () => {
-        const port = server.address().port
-        $.get(`http://127.0.0.1:${port}`)
+      server.listen(0, '127.0.0.1', function () {
+        var port = server.address().port
+        $.get('http://127.0.0.1:' + port)
       })
     })
   })
 
-  describe('accessing key names also used as Node.js module names', () => {
-    it('does not crash', (done) => {
-      w = new BrowserWindow({ show: false })
-      w.webContents.once('did-finish-load', () => { done() })
-      w.webContents.once('crashed', () => done(new Error('WebContents crashed.')))
-      w.loadFile(path.join(fixtures, 'pages', 'external-string.html'))
-    })
-  })
+  describe('document.hidden', function () {
+    var url = 'file://' + fixtures + '/pages/document-hidden.html'
 
-  describe('loading jquery', () => {
-    it('does not crash', (done) => {
+    it('is set correctly when window is not shown', function (done) {
       w = new BrowserWindow({
-        show: false,
-        webPreferences: {
-          nodeIntegration: false
-        }
+        show: false
       })
-      w.webContents.once('did-finish-load', () => { done() })
-      w.webContents.once('crashed', () => done(new Error('WebContents crashed.')))
-      w.loadFile(path.join(fixtures, 'pages', 'jquery.html'))
+      w.webContents.once('ipc-message', function (event, args) {
+        assert.deepEqual(args, ['hidden', true])
+        done()
+      })
+      w.loadURL(url)
+    })
+
+    it('is set correctly when window is inactive', function (done) {
+      if (isCI && process.platform === 'win32') return done()
+
+      w = new BrowserWindow({
+        show: false
+      })
+      w.webContents.once('ipc-message', function (event, args) {
+        assert.deepEqual(args, ['hidden', false])
+        done()
+      })
+      w.showInactive()
+      w.loadURL(url)
     })
   })
 
-  describe('navigator.webkitGetUserMedia', () => {
-    it('calls its callbacks', (done) => {
+  xdescribe('navigator.webkitGetUserMedia', function () {
+    it('calls its callbacks', function (done) {
       navigator.webkitGetUserMedia({
         audio: true,
         video: false
-      }, () => done(),
-      () => done())
+      }, function () {
+        done()
+      }, function () {
+        done()
+      })
     })
   })
 
-  describe('navigator.mediaDevices', () => {
-    if (isCI) return
+  describe('navigator.mediaDevices', function () {
+    if (isCI) {
+      return
+    }
 
-    afterEach(() => {
-      remote.getGlobal('permissionChecks').allow()
-    })
-
-    it('can return labels of enumerated devices', (done) => {
+    it('can return labels of enumerated devices', function (done) {
       navigator.mediaDevices.enumerateDevices().then((devices) => {
         const labels = devices.map((device) => device.label)
         const labelFound = labels.some((label) => !!label)
@@ -128,20 +107,7 @@ describe('chromium feature', () => {
       }).catch(done)
     })
 
-    it('does not return labels of enumerated devices when permission denied', (done) => {
-      remote.getGlobal('permissionChecks').reject()
-      navigator.mediaDevices.enumerateDevices().then((devices) => {
-        const labels = devices.map((device) => device.label)
-        const labelFound = labels.some((label) => !!label)
-        if (labelFound) {
-          done(new Error(`Device labels were found: ${JSON.stringify(labels)}`))
-        } else {
-          done()
-        }
-      }).catch(done)
-    })
-
-    it('can return new device id when cookie storage is cleared', (done) => {
+    it('can return new device id when cookie storage is cleared', function (done) {
       const options = {
         origin: null,
         storages: ['cookies']
@@ -154,205 +120,106 @@ describe('chromium feature', () => {
           session: ses
         }
       })
-      w.webContents.on('ipc-message', (event, args) => {
-        if (args[0] === 'deviceIds') deviceIds.push(args[1])
+      w.webContents.on('ipc-message', function (event, args) {
+        if (args[0] === 'deviceIds') {
+          deviceIds.push(args[1])
+        }
         if (deviceIds.length === 2) {
-          assert.notDeepStrictEqual(deviceIds[0], deviceIds[1])
-          closeWindow(w).then(() => {
+          assert.notDeepEqual(deviceIds[0], deviceIds[1])
+          closeWindow(w).then(function () {
             w = null
             done()
-          }).catch((error) => done(error))
+          }).catch(function (error) {
+            done(error)
+          })
         } else {
-          ses.clearStorageData(options, () => {
+          ses.clearStorageData(options, function () {
             w.webContents.reload()
           })
         }
       })
-      w.loadFile(path.join(fixtures, 'pages', 'media-id-reset.html'))
+      w.loadURL('file://' + fixtures + '/pages/media-id-reset.html')
     })
   })
 
-  describe('navigator.language', () => {
-    it('should not be empty', () => {
-      assert.notStrictEqual(navigator.language, '')
+  describe('navigator.language', function () {
+    it('should not be empty', function () {
+      assert.notEqual(navigator.language, '')
     })
   })
 
-  describe('navigator.languages', (done) => {
-    it('should return the system locale only', () => {
-      const appLocale = app.getLocale()
-      assert.strictEqual(navigator.languages.length, 1)
-      assert.strictEqual(navigator.languages[0], appLocale)
-    })
-  })
+  describe('navigator.serviceWorker', function () {
+    var url = 'file://' + fixtures + '/pages/service-worker/index.html'
 
-  describe('navigator.serviceWorker', () => {
-    it('should register for file scheme', (done) => {
+    it('should register for file scheme', function (done) {
       w = new BrowserWindow({
-        show: false,
-        webPreferences: {
-          partition: 'sw-file-scheme-spec'
-        }
+        show: false
       })
-      w.webContents.on('ipc-message', (event, args) => {
+      w.webContents.on('ipc-message', function (event, args) {
         if (args[0] === 'reload') {
           w.webContents.reload()
         } else if (args[0] === 'error') {
-          done(args[1])
+          done('unexpected error : ' + args[1])
         } else if (args[0] === 'response') {
-          assert.strictEqual(args[1], 'Hello from serviceWorker!')
-          session.fromPartition('sw-file-scheme-spec').clearStorageData({
+          assert.equal(args[1], 'Hello from serviceWorker!')
+          session.defaultSession.clearStorageData({
             storages: ['serviceworkers']
-          }, () => done())
-        }
-      })
-      w.webContents.on('crashed', () => done(new Error('WebContents crashed.')))
-      w.loadFile(path.join(fixtures, 'pages', 'service-worker', 'index.html'))
-    })
-
-    it('should register for intercepted file scheme', (done) => {
-      const customSession = session.fromPartition('intercept-file')
-      customSession.protocol.interceptBufferProtocol('file', (request, callback) => {
-        let file = url.parse(request.url).pathname
-        if (file[0] === '/' && process.platform === 'win32') file = file.slice(1)
-
-        const content = fs.readFileSync(path.normalize(file))
-        const ext = path.extname(file)
-        let type = 'text/html'
-
-        if (ext === '.js') type = 'application/javascript'
-        callback({ data: content, mimeType: type })
-      }, (error) => {
-        if (error) done(error)
-      })
-
-      w = new BrowserWindow({
-        show: false,
-        webPreferences: { session: customSession }
-      })
-      w.webContents.on('ipc-message', (event, args) => {
-        if (args[0] === 'reload') {
-          w.webContents.reload()
-        } else if (args[0] === 'error') {
-          done(`unexpected error : ${args[1]}`)
-        } else if (args[0] === 'response') {
-          assert.strictEqual(args[1], 'Hello from serviceWorker!')
-          customSession.clearStorageData({
-            storages: ['serviceworkers']
-          }, () => {
-            customSession.protocol.uninterceptProtocol('file', (error) => done(error))
+          }, function () {
+            done()
           })
         }
       })
-      w.webContents.on('crashed', () => done(new Error('WebContents crashed.')))
-      w.loadFile(path.join(fixtures, 'pages', 'service-worker', 'index.html'))
+      w.loadURL(url)
     })
   })
 
-  describe('navigator.geolocation', () => {
-    before(function () {
-      if (!features.isFakeLocationProviderEnabled()) {
-        return this.skip()
-      }
-    })
+  describe('window.open', function () {
+    if (process.env.TRAVIS === 'true' && process.platform === 'darwin') {
+      return
+    }
 
-    it('returns position when permission is granted', (done) => {
-      navigator.geolocation.getCurrentPosition((position) => {
-        assert(position.timestamp)
-        done()
-      }, (error) => {
-        done(error)
-      })
-    })
-
-    it('returns error when permission is denied', (done) => {
-      w = new BrowserWindow({
-        show: false,
-        webPreferences: {
-          partition: 'geolocation-spec'
-        }
-      })
-      w.webContents.on('ipc-message', (event, args) => {
-        if (args[0] === 'success') {
-          done()
-        } else {
-          done('unexpected response from geolocation api')
-        }
-      })
-      w.webContents.session.setPermissionRequestHandler((wc, permission, callback) => {
-        if (permission === 'geolocation') {
-          callback(false)
-        } else {
-          callback(true)
-        }
-      })
-      w.loadFile(path.join(fixtures, 'pages', 'geolocation', 'index.html'))
-    })
-  })
-
-  describe('window.open', () => {
-    it('returns a BrowserWindowProxy object', () => {
-      const b = window.open('about:blank', '', 'show=no')
-      assert.strictEqual(b.closed, false)
-      assert.strictEqual(b.constructor.name, 'BrowserWindowProxy')
+    it('returns a BrowserWindowProxy object', function () {
+      var b = window.open('about:blank', '', 'show=no')
+      assert.equal(b.closed, false)
+      assert.equal(b.constructor.name, 'BrowserWindowProxy')
       b.close()
     })
 
-    it('accepts "nodeIntegration" as feature', (done) => {
-      let b = null
-      listener = (event) => {
-        assert.strictEqual(event.data.isProcessGlobalUndefined, true)
+    it('accepts "nodeIntegration" as feature', function (done) {
+      var b
+      listener = function (event) {
+        assert.equal(event.data.isProcessGlobalUndefined, true)
         b.close()
         done()
       }
       window.addEventListener('message', listener)
-      b = window.open(`file://${fixtures}/pages/window-opener-node.html`, '', 'nodeIntegration=no,show=no')
+      b = window.open('file://' + fixtures + '/pages/window-opener-node.html', '', 'nodeIntegration=no,show=no')
     })
 
-    it('inherit options of parent window', (done) => {
-      let b = null
-      listener = (event) => {
-        const ref1 = remote.getCurrentWindow().getSize()
-        const width = ref1[0]
-        const height = ref1[1]
-        assert.strictEqual(event.data, `size: ${width} ${height}`)
+    it('inherit options of parent window', function (done) {
+      var b
+      listener = function (event) {
+        var ref1 = remote.getCurrentWindow().getSize()
+        var width = ref1[0]
+        var height = ref1[1]
+        assert.equal(event.data, 'size: ' + width + ' ' + height)
         b.close()
         done()
       }
       window.addEventListener('message', listener)
-      b = window.open(`file://${fixtures}/pages/window-open-size.html`, '', 'show=no')
+      b = window.open('file://' + fixtures + '/pages/window-open-size.html', '', 'show=no')
     })
 
-    for (const show of [true, false]) {
-      it(`inherits parent visibility over parent {show=${show}} option`, (done) => {
-        const w = new BrowserWindow({ show })
-
-        // toggle visibility
-        if (show) {
-          w.hide()
-        } else {
-          w.show()
-        }
-
-        w.webContents.once('new-window', (e, url, frameName, disposition, options) => {
-          assert.strictEqual(options.show, w.isVisible())
-          w.close()
-          done()
-        })
-        w.loadFile(path.join(fixtures, 'pages', 'window-open.html'))
-      })
-    }
-
-    it('disables node integration when it is disabled on the parent window', (done) => {
-      let b = null
-      listener = (event) => {
-        assert.strictEqual(event.data.isProcessGlobalUndefined, true)
+    it('disables node integration when it is disabled on the parent window', function (done) {
+      var b
+      listener = function (event) {
+        assert.equal(event.data.isProcessGlobalUndefined, true)
         b.close()
         done()
       }
       window.addEventListener('message', listener)
 
-      const windowUrl = require('url').format({
+      var windowUrl = require('url').format({
         pathname: `${fixtures}/pages/window-opener-no-node-integration.html`,
         protocol: 'file',
         query: {
@@ -363,33 +230,12 @@ describe('chromium feature', () => {
       b = window.open(windowUrl, '', 'nodeIntegration=no,show=no')
     })
 
-    it('disables webviewTag when node integration is disabled on the parent window', (done) => {
-      let b = null
-      listener = (event) => {
-        assert.strictEqual(event.data.isWebViewUndefined, true)
-        b.close()
-        done()
-      }
-      window.addEventListener('message', listener)
-
-      const windowUrl = require('url').format({
-        pathname: `${fixtures}/pages/window-opener-no-web-view-tag.html`,
-        protocol: 'file',
-        query: {
-          p: `${fixtures}/pages/window-opener-web-view.html`
-        },
-        slashes: true
-      })
-      b = window.open(windowUrl, '', 'nodeIntegration=no,show=no')
-    })
-
-    // TODO(codebytere): re-enable this test
-    xit('disables node integration when it is disabled on the parent window for chrome devtools URLs', (done) => {
-      let b = null
+    it('disables node integration when it is disabled on the parent window for chrome devtools URLs', function (done) {
+      var b
       app.once('web-contents-created', (event, contents) => {
         contents.once('did-finish-load', () => {
           contents.executeJavaScript('typeof process').then((typeofProcessGlobal) => {
-            assert.strictEqual(typeofProcessGlobal, 'undefined')
+            assert.equal(typeofProcessGlobal, 'undefined')
             b.close()
             done()
           }).catch(done)
@@ -398,24 +244,24 @@ describe('chromium feature', () => {
       b = window.open('chrome-devtools://devtools/bundled/inspector.html', '', 'nodeIntegration=no,show=no')
     })
 
-    it('disables JavaScript when it is disabled on the parent window', (done) => {
-      let b = null
+    it('disables JavaScript when it is disabled on the parent window', function (done) {
+      var b
       app.once('web-contents-created', (event, contents) => {
         contents.once('did-finish-load', () => {
           app.once('browser-window-created', (event, window) => {
-            const preferences = window.webContents.getLastWebPreferences()
-            assert.strictEqual(preferences.javascript, false)
+            const preferences = window.webContents.getWebPreferences()
+            assert.equal(preferences.javascript, false)
             window.destroy()
             b.close()
             done()
           })
           // Click link on page
-          contents.sendInputEvent({ type: 'mouseDown', clickCount: 1, x: 1, y: 1 })
-          contents.sendInputEvent({ type: 'mouseUp', clickCount: 1, x: 1, y: 1 })
+          contents.sendInputEvent({type: 'mouseDown', clickCount: 1, x: 1, y: 1})
+          contents.sendInputEvent({type: 'mouseUp', clickCount: 1, x: 1, y: 1})
         })
       })
 
-      const windowUrl = require('url').format({
+      var windowUrl = require('url').format({
         pathname: `${fixtures}/pages/window-no-javascript.html`,
         protocol: 'file',
         slashes: true
@@ -423,48 +269,28 @@ describe('chromium feature', () => {
       b = window.open(windowUrl, '', 'javascript=no,show=no')
     })
 
-    it('disables the <webview> tag when it is disabled on the parent window', (done) => {
-      let b = null
-      listener = (event) => {
-        assert.strictEqual(event.data.isWebViewGlobalUndefined, true)
-        b.close()
-        done()
-      }
-      window.addEventListener('message', listener)
-
-      const windowUrl = require('url').format({
-        pathname: `${fixtures}/pages/window-opener-no-webview-tag.html`,
-        protocol: 'file',
-        query: {
-          p: `${fixtures}/pages/window-opener-webview.html`
-        },
-        slashes: true
-      })
-      b = window.open(windowUrl, '', 'webviewTag=no,nodeIntegration=yes,show=no')
-    })
-
-    it('does not override child options', (done) => {
-      let b = null
-      const size = {
+    it('does not override child options', function (done) {
+      var b, size
+      size = {
         width: 350,
         height: 450
       }
-      listener = (event) => {
-        assert.strictEqual(event.data, `size: ${size.width} ${size.height}`)
+      listener = function (event) {
+        assert.equal(event.data, 'size: ' + size.width + ' ' + size.height)
         b.close()
         done()
       }
       window.addEventListener('message', listener)
-      b = window.open(`file://${fixtures}/pages/window-open-size.html`, '', 'show=no,width=' + size.width + ',height=' + size.height)
+      b = window.open('file://' + fixtures + '/pages/window-open-size.html', '', 'show=no,width=' + size.width + ',height=' + size.height)
     })
 
     it('handles cycles when merging the parent options into the child options', (done) => {
       w = BrowserWindow.fromId(ipcRenderer.sendSync('create-window-with-options-cycle'))
-      w.loadFile(path.join(fixtures, 'pages', 'window-open.html'))
+      w.loadURL('file://' + fixtures + '/pages/window-open.html')
       w.webContents.once('new-window', (event, url, frameName, disposition, options) => {
-        assert.strictEqual(options.show, false)
-        assert.deepStrictEqual(...resolveGetters(options.foo, {
-          bar: undefined,
+        assert.equal(options.show, false)
+        assert.deepEqual(options.foo, {
+          bar: null,
           baz: {
             hello: {
               world: true
@@ -475,22 +301,21 @@ describe('chromium feature', () => {
               world: true
             }
           }
-        }))
+        })
         done()
       })
     })
 
-    it('defines a window.location getter', (done) => {
-      let b = null
-      let targetURL
+    it('defines a window.location getter', function (done) {
+      var b, targetURL
       if (process.platform === 'win32') {
-        targetURL = `file:///${fixtures.replace(/\\/g, '/')}/pages/base-page.html`
+        targetURL = 'file:///' + fixtures.replace(/\\/g, '/') + '/pages/base-page.html'
       } else {
-        targetURL = `file://${fixtures}/pages/base-page.html`
+        targetURL = 'file://' + fixtures + '/pages/base-page.html'
       }
       app.once('browser-window-created', (event, window) => {
         window.webContents.once('did-finish-load', () => {
-          assert.strictEqual(b.location, targetURL)
+          assert.equal(b.location, targetURL)
           b.close()
           done()
         })
@@ -498,36 +323,37 @@ describe('chromium feature', () => {
       b = window.open(targetURL)
     })
 
-    it('defines a window.location setter', (done) => {
-      let b = null
-      app.once('browser-window-created', (event, { webContents }) => {
-        webContents.once('did-finish-load', () => {
+    it('defines a window.location setter', function (done) {
+      let b
+      app.once('browser-window-created', (event, {webContents}) => {
+        webContents.once('did-finish-load', function () {
           // When it loads, redirect
-          b.location = `file://${fixtures}/pages/base-page.html`
-          webContents.once('did-finish-load', () => {
+          b.location = 'file://' + fixtures + '/pages/base-page.html'
+          webContents.once('did-finish-load', function () {
             // After our second redirect, cleanup and callback
             b.close()
             done()
           })
         })
       })
+      // Load a page that definitely won't redirect
       b = window.open('about:blank')
     })
 
-    it('open a blank page when no URL is specified', (done) => {
-      let b = null
-      app.once('browser-window-created', (event, { webContents }) => {
-        webContents.once('did-finish-load', () => {
-          const { location } = b
+    it('open a blank page when no URL is specified', function (done) {
+      let b
+      app.once('browser-window-created', (event, {webContents}) => {
+        webContents.once('did-finish-load', function () {
+          const {location} = b
           b.close()
-          assert.strictEqual(location, 'about:blank')
+          assert.equal(location, 'about:blank')
 
-          let c = null
-          app.once('browser-window-created', (event, { webContents }) => {
-            webContents.once('did-finish-load', () => {
-              const { location } = c
+          let c
+          app.once('browser-window-created', (event, {webContents}) => {
+            webContents.once('did-finish-load', function () {
+              const {location} = c
               c.close()
-              assert.strictEqual(location, 'about:blank')
+              assert.equal(location, 'about:blank')
               done()
             })
           })
@@ -537,60 +363,63 @@ describe('chromium feature', () => {
       b = window.open()
     })
 
-    it('throws an exception when the arguments cannot be converted to strings', () => {
-      assert.throws(() => {
-        window.open('', { toString: null })
+    it('throws an exception when the arguments cannot be converted to strings', function () {
+      assert.throws(function () {
+        window.open('', {toString: null})
       }, /Cannot convert object to primitive value/)
 
-      assert.throws(() => {
-        window.open('', '', { toString: 3 })
+      assert.throws(function () {
+        window.open('', '', {toString: 3})
       }, /Cannot convert object to primitive value/)
     })
 
-    it('sets the window title to the specified frameName', (done) => {
-      let b = null
+    it('sets the window title to the specified frameName', function (done) {
+      let b
       app.once('browser-window-created', (event, createdWindow) => {
-        assert.strictEqual(createdWindow.getTitle(), 'hello')
+        assert.equal(createdWindow.getTitle(), 'hello')
         b.close()
         done()
       })
       b = window.open('', 'hello')
     })
 
-    it('does not throw an exception when the frameName is a built-in object property', (done) => {
-      let b = null
+    it('does not throw an exception when the frameName is a built-in object property', function (done) {
+      let b
       app.once('browser-window-created', (event, createdWindow) => {
-        assert.strictEqual(createdWindow.getTitle(), '__proto__')
+        assert.equal(createdWindow.getTitle(), '__proto__')
         b.close()
         done()
       })
       b = window.open('', '__proto__')
     })
 
-    it('does not throw an exception when the features include webPreferences', () => {
-      let b = null
-      assert.doesNotThrow(() => {
+    it('does not throw an exception when the features include webPreferences', function () {
+      let b
+      assert.doesNotThrow(function () {
         b = window.open('', '', 'webPreferences=')
       })
       b.close()
     })
   })
 
-  describe('window.opener', () => {
-    const url = `file://${fixtures}/pages/window-opener.html`
-    it('is null for main window', (done) => {
-      w = new BrowserWindow({ show: false })
-      w.webContents.once('ipc-message', (event, args) => {
-        assert.deepStrictEqual(args, ['opener', null])
+  describe('window.opener', function () {
+    let url = 'file://' + fixtures + '/pages/window-opener.html'
+
+    it('is null for main window', function (done) {
+      w = new BrowserWindow({
+        show: false
+      })
+      w.webContents.once('ipc-message', function (event, args) {
+        assert.deepEqual(args, ['opener', null])
         done()
       })
-      w.loadFile(path.join(fixtures, 'pages', 'window-opener.html'))
+      w.loadURL(url)
     })
 
-    it('is not null for window opened by window.open', (done) => {
-      let b = null
-      listener = (event) => {
-        assert.strictEqual(event.data, 'object')
+    it('is not null for window opened by window.open', function (done) {
+      let b
+      listener = function (event) {
+        assert.equal(event.data, 'object')
         b.close()
         done()
       }
@@ -599,46 +428,48 @@ describe('chromium feature', () => {
     })
   })
 
-  describe('window.opener access from BrowserWindow', () => {
+  describe('window.opener access from BrowserWindow', function () {
     const scheme = 'other'
-    const url = `${scheme}://${fixtures}/pages/window-opener-location.html`
+    let url = `${scheme}://${fixtures}/pages/window-opener-location.html`
     let w = null
 
-    before((done) => {
-      protocol.registerFileProtocol(scheme, (request, callback) => {
+    before(function (done) {
+      protocol.registerFileProtocol(scheme, function (request, callback) {
         callback(`${fixtures}/pages/window-opener-location.html`)
-      }, (error) => done(error))
+      }, function (error) {
+        done(error)
+      })
     })
 
-    after(() => {
+    after(function () {
       protocol.unregisterProtocol(scheme)
     })
 
-    afterEach(() => {
+    afterEach(function () {
       w.close()
     })
 
-    it('does nothing when origin of current window does not match opener', (done) => {
-      listener = (event) => {
-        assert.strictEqual(event.data, null)
+    it('does nothing when origin of current window does not match opener', function (done) {
+      listener = function (event) {
+        assert.equal(event.data, undefined)
         done()
       }
       window.addEventListener('message', listener)
-      w = window.open(url, '', 'show=no,nodeIntegration=no')
+      w = window.open(url, '', 'show=no')
     })
 
-    it('works when origin matches', (done) => {
-      listener = (event) => {
-        assert.strictEqual(event.data, location.href)
+    it('works when origin matches', function (done) {
+      listener = function (event) {
+        assert.equal(event.data, location.href)
         done()
       }
       window.addEventListener('message', listener)
-      w = window.open(`file://${fixtures}/pages/window-opener-location.html`, '', 'show=no,nodeIntegration=no')
+      w = window.open(`file://${fixtures}/pages/window-opener-location.html`, '', 'show=no')
     })
 
-    it('works when origin does not match opener but has node integration', (done) => {
-      listener = (event) => {
-        assert.strictEqual(event.data, location.href)
+    it('works when origin does not match opener but has node integration', function (done) {
+      listener = function (event) {
+        assert.equal(event.data, location.href)
         done()
       }
       window.addEventListener('message', listener)
@@ -646,30 +477,32 @@ describe('chromium feature', () => {
     })
   })
 
-  describe('window.opener access from <webview>', () => {
+  describe('window.opener access from <webview>', function () {
     const scheme = 'other'
     const srcPath = `${fixtures}/pages/webview-opener-postMessage.html`
     const pageURL = `file://${fixtures}/pages/window-opener-location.html`
     let webview = null
 
-    before((done) => {
-      protocol.registerFileProtocol(scheme, (request, callback) => {
+    before(function (done) {
+      protocol.registerFileProtocol(scheme, function (request, callback) {
         callback(srcPath)
-      }, (error) => done(error))
+      }, function (error) {
+        done(error)
+      })
     })
 
-    after(() => {
+    after(function () {
       protocol.unregisterProtocol(scheme)
     })
 
-    afterEach(() => {
+    afterEach(function () {
       if (webview != null) webview.remove()
     })
 
-    it('does nothing when origin of webview src URL does not match opener', (done) => {
+    it('does nothing when origin of webview src URL does not match opener', function (done) {
       webview = new WebView()
-      webview.addEventListener('console-message', (e) => {
-        assert.strictEqual(e.message, 'null')
+      webview.addEventListener('console-message', function (e) {
+        assert.equal(e.message, 'null')
         done()
       })
       webview.setAttribute('allowpopups', 'on')
@@ -684,10 +517,10 @@ describe('chromium feature', () => {
       document.body.appendChild(webview)
     })
 
-    it('works when origin matches', (done) => {
+    it('works when origin matches', function (done) {
       webview = new WebView()
-      webview.addEventListener('console-message', (e) => {
-        assert.strictEqual(e.message, webview.src)
+      webview.addEventListener('console-message', function (e) {
+        assert.equal(e.message, webview.src)
         done()
       })
       webview.setAttribute('allowpopups', 'on')
@@ -702,11 +535,11 @@ describe('chromium feature', () => {
       document.body.appendChild(webview)
     })
 
-    it('works when origin does not match opener but has node integration', (done) => {
+    it('works when origin does not match opener but has node integration', function (done) {
       webview = new WebView()
-      webview.addEventListener('console-message', (e) => {
+      webview.addEventListener('console-message', function (e) {
         webview.remove()
-        assert.strictEqual(e.message, webview.src)
+        assert.equal(e.message, webview.src)
         done()
       })
       webview.setAttribute('allowpopups', 'on')
@@ -723,56 +556,56 @@ describe('chromium feature', () => {
     })
   })
 
-  describe('window.postMessage', () => {
-    it('sets the source and origin correctly', (done) => {
-      let b = null
-      listener = (event) => {
+  describe('window.postMessage', function () {
+    it('sets the source and origin correctly', function (done) {
+      var b
+      listener = function (event) {
         window.removeEventListener('message', listener)
         b.close()
-        const message = JSON.parse(event.data)
-        assert.strictEqual(message.data, 'testing')
-        assert.strictEqual(message.origin, 'file://')
-        assert.strictEqual(message.sourceEqualsOpener, true)
-        assert.strictEqual(event.origin, 'file://')
+        var message = JSON.parse(event.data)
+        assert.equal(message.data, 'testing')
+        assert.equal(message.origin, 'file://')
+        assert.equal(message.sourceEqualsOpener, true)
+        assert.equal(event.origin, 'file://')
         done()
       }
       window.addEventListener('message', listener)
-      app.once('browser-window-created', (event, { webContents }) => {
-        webContents.once('did-finish-load', () => {
+      app.once('browser-window-created', (event, {webContents}) => {
+        webContents.once('did-finish-load', function () {
           b.postMessage('testing', '*')
         })
       })
-      b = window.open(`file://${fixtures}/pages/window-open-postMessage.html`, '', 'show=no')
+      b = window.open('file://' + fixtures + '/pages/window-open-postMessage.html', '', 'show=no')
     })
 
-    it('throws an exception when the targetOrigin cannot be converted to a string', () => {
-      const b = window.open('')
-      assert.throws(() => {
-        b.postMessage('test', { toString: null })
+    it('throws an exception when the targetOrigin cannot be converted to a string', function () {
+      var b = window.open('')
+      assert.throws(function () {
+        b.postMessage('test', {toString: null})
       }, /Cannot convert object to primitive value/)
       b.close()
     })
   })
 
-  describe('window.opener.postMessage', () => {
-    it('sets source and origin correctly', (done) => {
-      let b = null
-      listener = (event) => {
+  describe('window.opener.postMessage', function () {
+    it('sets source and origin correctly', function (done) {
+      var b
+      listener = function (event) {
         window.removeEventListener('message', listener)
         b.close()
-        assert.strictEqual(event.source, b)
-        assert.strictEqual(event.origin, 'file://')
+        assert.equal(event.source, b)
+        assert.equal(event.origin, 'file://')
         done()
       }
       window.addEventListener('message', listener)
-      b = window.open(`file://${fixtures}/pages/window-opener-postMessage.html`, '', 'show=no')
+      b = window.open('file://' + fixtures + '/pages/window-opener-postMessage.html', '', 'show=no')
     })
 
-    it('supports windows opened from a <webview>', (done) => {
+    it('supports windows opened from a <webview>', function (done) {
       const webview = new WebView()
-      webview.addEventListener('console-message', (e) => {
+      webview.addEventListener('console-message', function (e) {
         webview.remove()
-        assert.strictEqual(e.message, 'message')
+        assert.equal(e.message, 'message')
         done()
       })
       webview.allowpopups = true
@@ -787,32 +620,32 @@ describe('chromium feature', () => {
       document.body.appendChild(webview)
     })
 
-    describe('targetOrigin argument', () => {
+    describe('targetOrigin argument', function () {
       let serverURL
       let server
 
-      beforeEach((done) => {
-        server = http.createServer((req, res) => {
+      beforeEach(function (done) {
+        server = http.createServer(function (req, res) {
           res.writeHead(200)
           const filePath = path.join(fixtures, 'pages', 'window-opener-targetOrigin.html')
           res.end(fs.readFileSync(filePath, 'utf8'))
         })
-        server.listen(0, '127.0.0.1', () => {
+        server.listen(0, '127.0.0.1', function () {
           serverURL = `http://127.0.0.1:${server.address().port}`
           done()
         })
       })
 
-      afterEach(() => {
+      afterEach(function () {
         server.close()
       })
 
-      it('delivers messages that match the origin', (done) => {
-        let b = null
-        listener = (event) => {
+      it('delivers messages that match the origin', function (done) {
+        let b
+        listener = function (event) {
           window.removeEventListener('message', listener)
           b.close()
-          assert.strictEqual(event.data, 'deliver')
+          assert.equal(event.data, 'deliver')
           done()
         }
         window.addEventListener('message', listener)
@@ -821,135 +654,129 @@ describe('chromium feature', () => {
     })
   })
 
-  describe('creating a Uint8Array under browser side', () => {
-    it('does not crash', () => {
-      const RUint8Array = remote.getGlobal('Uint8Array')
-      const arr = new RUint8Array()
+  describe('creating a Uint8Array under browser side', function () {
+    it('does not crash', function () {
+      var RUint8Array = remote.getGlobal('Uint8Array')
+      var arr = new RUint8Array()
       assert(arr)
     })
   })
 
-  describe('webgl', () => {
-    before(function () {
-      if (isCI && process.platform === 'win32') {
-        this.skip()
-      }
-    })
+  describe('webgl', function () {
+    if (isCI && process.platform === 'win32') {
+      return
+    }
 
-    it('can be get as context in canvas', () => {
-      if (process.platform === 'linux') {
-        // FIXME(alexeykuzmin): Skip the test.
-        // this.skip()
-        return
-      }
+    it('can be get as context in canvas', function () {
+      if (process.platform === 'linux') return
 
-      const webgl = document.createElement('canvas').getContext('webgl')
-      assert.notStrictEqual(webgl, null)
+      var webgl = document.createElement('canvas').getContext('webgl')
+      assert.notEqual(webgl, null)
     })
   })
 
-  describe('web workers', () => {
-    it('Worker can work', (done) => {
-      const worker = new Worker('../fixtures/workers/worker.js')
-      const message = 'ping'
-      worker.onmessage = (event) => {
-        assert.strictEqual(event.data, message)
+  describe('web workers', function () {
+    it('Worker can work', function (done) {
+      var worker = new Worker('../fixtures/workers/worker.js')
+      var message = 'ping'
+      worker.onmessage = function (event) {
+        assert.equal(event.data, message)
         worker.terminate()
         done()
       }
       worker.postMessage(message)
     })
 
-    it('Worker has no node integration by default', (done) => {
-      const worker = new Worker('../fixtures/workers/worker_node.js')
-      worker.onmessage = (event) => {
-        assert.strictEqual(event.data, 'undefined undefined undefined undefined')
+    it('Worker has no node integration by default', function (done) {
+      let worker = new Worker('../fixtures/workers/worker_node.js')
+      worker.onmessage = function (event) {
+        assert.equal(event.data, 'undefined undefined undefined undefined')
         worker.terminate()
         done()
       }
     })
 
-    it('Worker has node integration with nodeIntegrationInWorker', (done) => {
-      const webview = new WebView()
-      webview.addEventListener('ipc-message', (e) => {
-        assert.strictEqual(e.channel, 'object function object function')
+    it('Worker has node integration with nodeIntegrationInWorker', function (done) {
+      let webview = new WebView()
+      webview.addEventListener('ipc-message', function (e) {
+        assert.equal(e.channel, 'object function object function')
         webview.remove()
         done()
       })
-      webview.src = `file://${fixtures}/pages/worker.html`
+      webview.src = 'file://' + fixtures + '/pages/worker.html'
       webview.setAttribute('webpreferences', 'nodeIntegration, nodeIntegrationInWorker')
       document.body.appendChild(webview)
     })
 
-    it('SharedWorker can work', (done) => {
-      const worker = new SharedWorker('../fixtures/workers/shared_worker.js')
-      const message = 'ping'
-      worker.port.onmessage = (event) => {
-        assert.strictEqual(event.data, message)
+    it('SharedWorker can work', function (done) {
+      var worker = new SharedWorker('../fixtures/workers/shared_worker.js')
+      var message = 'ping'
+      worker.port.onmessage = function (event) {
+        assert.equal(event.data, message)
         done()
       }
       worker.port.postMessage(message)
     })
 
-    it('SharedWorker has no node integration by default', (done) => {
-      const worker = new SharedWorker('../fixtures/workers/shared_worker_node.js')
-      worker.port.onmessage = (event) => {
-        assert.strictEqual(event.data, 'undefined undefined undefined undefined')
+    it('SharedWorker has no node integration by default', function (done) {
+      let worker = new SharedWorker('../fixtures/workers/shared_worker_node.js')
+      worker.port.onmessage = function (event) {
+        assert.equal(event.data, 'undefined undefined undefined undefined')
         done()
       }
     })
 
-    it('SharedWorker has node integration with nodeIntegrationInWorker', (done) => {
-      const webview = new WebView()
-      webview.addEventListener('console-message', (e) => {
+    it('SharedWorker has node integration with nodeIntegrationInWorker', function (done) {
+      let webview = new WebView()
+      webview.addEventListener('console-message', function (e) {
         console.log(e)
       })
-      webview.addEventListener('ipc-message', (e) => {
-        assert.strictEqual(e.channel, 'object function object function')
+      webview.addEventListener('ipc-message', function (e) {
+        assert.equal(e.channel, 'object function object function')
         webview.remove()
         done()
       })
-      webview.src = `file://${fixtures}/pages/shared_worker.html`
+      webview.src = 'file://' + fixtures + '/pages/shared_worker.html'
       webview.setAttribute('webpreferences', 'nodeIntegration, nodeIntegrationInWorker')
       document.body.appendChild(webview)
     })
   })
 
-  describe('iframe', () => {
-    let iframe = null
+  describe('iframe', function () {
+    var iframe = null
 
-    beforeEach(() => {
+    beforeEach(function () {
       iframe = document.createElement('iframe')
     })
 
-    afterEach(() => {
+    afterEach(function () {
       document.body.removeChild(iframe)
     })
 
-    it('does not have node integration', (done) => {
-      iframe.src = `file://${fixtures}/pages/set-global.html`
+    it('does not have node integration', function (done) {
+      iframe.src = 'file://' + fixtures + '/pages/set-global.html'
       document.body.appendChild(iframe)
-      iframe.onload = () => {
-        assert.strictEqual(iframe.contentWindow.test, 'undefined undefined undefined')
+      iframe.onload = function () {
+        assert.equal(iframe.contentWindow.test, 'undefined undefined undefined')
         done()
       }
     })
   })
 
-  describe('storage', () => {
-    it('requesting persitent quota works', (done) => {
-      navigator.webkitPersistentStorage.requestQuota(1024 * 1024, (grantedBytes) => {
-        assert.strictEqual(grantedBytes, 1048576)
+  describe('storage', function () {
+    it('requesting persitent quota works', function (done) {
+      navigator.webkitPersistentStorage.requestQuota(1024 * 1024, function (grantedBytes) {
+        assert.equal(grantedBytes, 1048576)
         done()
       })
     })
 
-    describe('custom non standard schemes', () => {
+    describe('custom non standard schemes', function () {
       const protocolName = 'storage'
       let contents = null
-      before((done) => {
-        const handler = (request, callback) => {
-          const parsedUrl = url.parse(request.url)
+      before(function (done) {
+        const handler = function (request, callback) {
+          let parsedUrl = url.parse(request.url)
           let filename
           switch (parsedUrl.pathname) {
             case '/localStorage' : filename = 'local_storage.html'; break
@@ -959,27 +786,29 @@ describe('chromium feature', () => {
             case '/cookie' : filename = 'cookie.html'; break
             default : filename = ''
           }
-          callback({ path: `${fixtures}/pages/storage/${filename}` })
+          callback({path: fixtures + '/pages/storage/' + filename})
         }
-        protocol.registerFileProtocol(protocolName, handler, (error) => done(error))
+        protocol.registerFileProtocol(protocolName, handler, function (error) {
+          done(error)
+        })
       })
 
-      after((done) => {
+      after(function (done) {
         protocol.unregisterProtocol(protocolName, () => done())
       })
 
-      beforeEach(() => {
+      beforeEach(function () {
         contents = webContents.create({})
       })
 
-      afterEach(() => {
+      afterEach(function () {
         contents.destroy()
         contents = null
       })
 
-      it('cannot access localStorage', (done) => {
-        ipcMain.once('local-storage-response', (event, error) => {
-          assert.strictEqual(
+      it('cannot access localStorage', function (done) {
+        ipcMain.once('local-storage-response', function (event, error) {
+          assert.equal(
             error,
             'Failed to read the \'localStorage\' property from \'Window\': Access is denied for this document.')
           done()
@@ -987,85 +816,87 @@ describe('chromium feature', () => {
         contents.loadURL(protocolName + '://host/localStorage')
       })
 
-      it('cannot access sessionStorage', (done) => {
-        ipcMain.once('session-storage-response', (event, error) => {
-          assert.strictEqual(
+      it('cannot access sessionStorage', function (done) {
+        ipcMain.once('session-storage-response', function (event, error) {
+          assert.equal(
             error,
             'Failed to read the \'sessionStorage\' property from \'Window\': Access is denied for this document.')
           done()
         })
-        contents.loadURL(`${protocolName}://host/sessionStorage`)
+        contents.loadURL(protocolName + '://host/sessionStorage')
       })
 
-      it('cannot access WebSQL database', (done) => {
-        ipcMain.once('web-sql-response', (event, error) => {
-          assert.strictEqual(
+      it('cannot access WebSQL database', function (done) {
+        ipcMain.once('web-sql-response', function (event, error) {
+          assert.equal(
             error,
             'An attempt was made to break through the security policy of the user agent.')
           done()
         })
-        contents.loadURL(`${protocolName}://host/WebSQL`)
+        contents.loadURL(protocolName + '://host/WebSQL')
       })
 
-      it('cannot access indexedDB', (done) => {
-        ipcMain.once('indexed-db-response', (event, error) => {
-          assert.strictEqual(error, 'The user denied permission to access the database.')
+      it('cannot access indexedDB', function (done) {
+        ipcMain.once('indexed-db-response', function (event, error) {
+          assert.equal(error, 'The user denied permission to access the database.')
           done()
         })
-        contents.loadURL(`${protocolName}://host/indexedDB`)
+        contents.loadURL(protocolName + '://host/indexedDB')
       })
 
-      it('cannot access cookie', (done) => {
-        ipcMain.once('cookie-response', (event, cookie) => {
+      it('cannot access cookie', function (done) {
+        ipcMain.once('cookie-response', function (event, cookie) {
           assert(!cookie)
           done()
         })
-        contents.loadURL(`${protocolName}://host/cookie`)
+        contents.loadURL(protocolName + '://host/cookie')
       })
     })
   })
 
-  describe('websockets', () => {
-    let wss = null
-    let server = null
-    const WebSocketServer = ws.Server
+  describe('websockets', function () {
+    var wss = null
+    var server = null
+    var WebSocketServer = ws.Server
 
-    afterEach(() => {
+    afterEach(function () {
       wss.close()
       server.close()
     })
 
-    it('has user agent', (done) => {
+    it('has user agent', function (done) {
       server = http.createServer()
-      server.listen(0, '127.0.0.1', () => {
-        const port = server.address().port
-        wss = new WebSocketServer({ server: server })
+      server.listen(0, '127.0.0.1', function () {
+        var port = server.address().port
+        wss = new WebSocketServer({
+          server: server
+        })
         wss.on('error', done)
-        wss.on('connection', (ws, upgradeReq) => {
-          if (upgradeReq.headers['user-agent']) {
+        wss.on('connection', function (ws) {
+          if (ws.upgradeReq.headers['user-agent']) {
             done()
           } else {
             done('user agent is empty')
           }
         })
-        const socket = new WebSocket(`ws://127.0.0.1:${port}`)
+        var socket = new WebSocket(`ws://127.0.0.1:${port}`)
         assert(socket)
       })
     })
   })
 
-  describe('Promise', () => {
-    it('resolves correctly in Node.js calls', (done) => {
+  describe('Promise', function () {
+    it('resolves correctly in Node.js calls', function (done) {
       document.registerElement('x-element', {
         prototype: Object.create(HTMLElement.prototype, {
           createdCallback: {
-            value: () => {}
+            value: function () {}
           }
         })
       })
-      setImmediate(() => {
-        let called = false
-        Promise.resolve().then(() => {
+      setImmediate(function () {
+        var called = false
+        Promise.resolve().then(function () {
           done(called ? void 0 : new Error('wrong sequence'))
         })
         document.createElement('x-element')
@@ -1073,17 +904,17 @@ describe('chromium feature', () => {
       })
     })
 
-    it('resolves correctly in Electron calls', (done) => {
+    it('resolves correctly in Electron calls', function (done) {
       document.registerElement('y-element', {
         prototype: Object.create(HTMLElement.prototype, {
           createdCallback: {
-            value: () => {}
+            value: function () {}
           }
         })
       })
-      remote.getGlobal('setImmediate')(() => {
-        let called = false
-        Promise.resolve().then(() => {
+      remote.getGlobal('setImmediate')(function () {
+        var called = false
+        Promise.resolve().then(function () {
           done(called ? void 0 : new Error('wrong sequence'))
         })
         document.createElement('y-element')
@@ -1092,223 +923,128 @@ describe('chromium feature', () => {
     })
   })
 
-  describe('fetch', () => {
-    it('does not crash', (done) => {
-      const server = http.createServer((req, res) => {
+  describe('fetch', function () {
+    it('does not crash', function (done) {
+      const server = http.createServer(function (req, res) {
         res.end('test')
         server.close()
       })
-      server.listen(0, '127.0.0.1', () => {
+      server.listen(0, '127.0.0.1', function () {
         const port = server.address().port
-        fetch(`http://127.0.0.1:${port}`).then((res) => res.body.getReader())
-          .then((reader) => {
-            reader.read().then((r) => {
-              reader.cancel()
-              done()
-            })
-          }).catch((e) => done(e))
+        fetch(`http://127.0.0.1:${port}`).then((res) => {
+          return res.body.getReader()
+        }).then((reader) => {
+          reader.read().then((r) => {
+            reader.cancel()
+            done()
+          })
+        }).catch(function (e) {
+          done(e)
+        })
       })
     })
   })
 
-  describe('PDF Viewer', () => {
-    before(function () {
-      if (!features.isPDFViewerEnabled()) {
-        return this.skip()
-      }
+  describe('PDF Viewer', function () {
+    const pdfSource = url.format({
+      pathname: path.join(fixtures, 'assets', 'cat.pdf').replace(/\\/g, '/'),
+      protocol: 'file',
+      slashes: true
     })
 
-    beforeEach(() => {
-      this.pdfSource = url.format({
-        pathname: path.join(fixtures, 'assets', 'cat.pdf').replace(/\\/g, '/'),
-        protocol: 'file',
-        slashes: true
+    function createBrowserWindow ({plugins}) {
+      w = new BrowserWindow({
+        show: false,
+        webPreferences: {
+          preload: path.join(fixtures, 'module', 'preload-inject-ipc.js'),
+          plugins: plugins
+        }
       })
+    }
 
-      this.pdfSourceWithParams = url.format({
-        pathname: path.join(fixtures, 'assets', 'cat.pdf').replace(/\\/g, '/'),
-        query: {
-          a: 1,
-          b: 2
-        },
-        protocol: 'file',
-        slashes: true
+    it('opens when loading a pdf resource as top level navigation', function (done) {
+      createBrowserWindow({plugins: true})
+      ipcMain.once('pdf-loaded', function (event, success) {
+        if (success) done()
       })
-
-      this.createBrowserWindow = ({ plugins, preload }) => {
-        w = new BrowserWindow({
-          show: false,
-          webPreferences: {
-            preload: path.join(fixtures, 'module', preload),
-            plugins: plugins
+      w.webContents.on('page-title-updated', function () {
+        const source = `
+          if (window.viewer) {
+            window.viewer.setLoadCallback(function(success) {
+              window.ipcRenderer.send('pdf-loaded', success);
+            });
           }
-        })
-      }
-
-      this.testPDFIsLoadedInSubFrame = (page, preloadFile, done) => {
-        const pagePath = url.format({
-          pathname: path.join(fixtures, 'pages', page).replace(/\\/g, '/'),
-          protocol: 'file',
-          slashes: true
-        })
-
-        this.createBrowserWindow({ plugins: true, preload: preloadFile })
-        ipcMain.once('pdf-loaded', (event, state) => {
-          assert.strictEqual(state, 'success')
-          done()
-        })
-        w.webContents.on('page-title-updated', () => {
-          const parsedURL = url.parse(w.webContents.getURL(), true)
-          assert.strictEqual(parsedURL.protocol, 'chrome:')
-          assert.strictEqual(parsedURL.hostname, 'pdf-viewer')
-          assert.strictEqual(parsedURL.query.src, pagePath)
-          assert.strictEqual(w.webContents.getTitle(), 'cat.pdf')
-        })
-        w.loadFile(path.join(fixtures, 'pages', page))
-      }
-    })
-
-    it('opens when loading a pdf resource as top level navigation', (done) => {
-      this.createBrowserWindow({ plugins: true, preload: 'preload-pdf-loaded.js' })
-      ipcMain.once('pdf-loaded', (event, state) => {
-        assert.strictEqual(state, 'success')
-        done()
-      })
-      w.webContents.on('page-title-updated', () => {
+        `
         const parsedURL = url.parse(w.webContents.getURL(), true)
-        assert.strictEqual(parsedURL.protocol, 'chrome:')
-        assert.strictEqual(parsedURL.hostname, 'pdf-viewer')
-        assert.strictEqual(parsedURL.query.src, this.pdfSource)
-        assert.strictEqual(w.webContents.getTitle(), 'cat.pdf')
+        assert.equal(parsedURL.protocol, 'chrome:')
+        assert.equal(parsedURL.hostname, 'pdf-viewer')
+        assert.equal(parsedURL.query.src, pdfSource)
+        assert.equal(w.webContents.getTitle(), 'cat.pdf')
+        w.webContents.executeJavaScript(source)
       })
-      w.webContents.loadURL(this.pdfSource)
+      w.webContents.loadURL(pdfSource)
     })
 
-    it('opens a pdf link given params, the query string should be escaped', (done) => {
-      this.createBrowserWindow({ plugins: true, preload: 'preload-pdf-loaded.js' })
-      ipcMain.once('pdf-loaded', (event, state) => {
-        assert.strictEqual(state, 'success')
-        done()
-      })
-      w.webContents.on('page-title-updated', () => {
-        const parsedURL = url.parse(w.webContents.getURL(), true)
-        assert.strictEqual(parsedURL.protocol, 'chrome:')
-        assert.strictEqual(parsedURL.hostname, 'pdf-viewer')
-        assert.strictEqual(parsedURL.query.src, this.pdfSourceWithParams)
-        assert.strictEqual(parsedURL.query.b, undefined)
-        assert(parsedURL.search.endsWith('%3Fa%3D1%26b%3D2'))
-        assert.strictEqual(w.webContents.getTitle(), 'cat.pdf')
-      })
-      w.webContents.loadURL(this.pdfSourceWithParams)
-    })
-
-    it('should download a pdf when plugins are disabled', (done) => {
-      this.createBrowserWindow({ plugins: false, preload: 'preload-pdf-loaded.js' })
+    it('should download a pdf when plugins are disabled', function (done) {
+      createBrowserWindow({plugins: false})
       ipcRenderer.sendSync('set-download-option', false, false)
-      ipcRenderer.once('download-done', (event, state, url, mimeType, receivedBytes, totalBytes, disposition, filename) => {
-        assert.strictEqual(state, 'completed')
-        assert.strictEqual(filename, 'cat.pdf')
-        assert.strictEqual(mimeType, 'application/pdf')
+      ipcRenderer.once('download-done', function (event, state, url, mimeType, receivedBytes, totalBytes, disposition, filename) {
+        assert.equal(state, 'completed')
+        assert.equal(filename, 'cat.pdf')
+        assert.equal(mimeType, 'application/pdf')
         fs.unlinkSync(path.join(fixtures, 'mock.pdf'))
         done()
       })
-      w.webContents.loadURL(this.pdfSource)
+      w.webContents.loadURL(pdfSource)
     })
 
-    it('should not open when pdf is requested as sub resource', (done) => {
-      fetch(this.pdfSource).then((res) => {
-        assert.strictEqual(res.status, 200)
-        assert.notStrictEqual(document.title, 'cat.pdf')
+    it('should not open when pdf is requested as sub resource', function (done) {
+      createBrowserWindow({plugins: true})
+      webFrame.registerURLSchemeAsPrivileged('file', {
+        secure: false,
+        bypassCSP: false,
+        allowServiceWorkers: false,
+        corsEnabled: false
+      })
+      fetch(pdfSource).then(function (res) {
+        assert.equal(res.status, 200)
+        assert.notEqual(document.title, 'cat.pdf')
         done()
-      }).catch((e) => done(e))
-    })
-
-    it('opens when loading a pdf resource in a iframe', (done) => {
-      this.testPDFIsLoadedInSubFrame('pdf-in-iframe.html', 'preload-pdf-loaded-in-subframe.js', done)
-    })
-
-    it('opens when loading a pdf resource in a nested iframe', (done) => {
-      this.testPDFIsLoadedInSubFrame('pdf-in-nested-iframe.html', 'preload-pdf-loaded-in-nested-subframe.js', done)
-    })
-  })
-
-  describe('window.alert(message, title)', () => {
-    it('throws an exception when the arguments cannot be converted to strings', () => {
-      assert.throws(() => {
-        window.alert({ toString: null })
-      }, /Cannot convert object to primitive value/)
-    })
-  })
-
-  describe('window.confirm(message, title)', () => {
-    it('throws an exception when the arguments cannot be converted to strings', () => {
-      assert.throws(() => {
-        window.confirm({ toString: null }, 'title')
-      }, /Cannot convert object to primitive value/)
-    })
-  })
-
-  describe('window.history', () => {
-    describe('window.history.go(offset)', () => {
-      it('throws an exception when the argumnet cannot be converted to a string', () => {
-        assert.throws(() => {
-          window.history.go({ toString: null })
-        }, /Cannot convert object to primitive value/)
-      })
-    })
-
-    describe('window.history.pushState', () => {
-      it('should push state after calling history.pushState() from the same url', (done) => {
-        w = new BrowserWindow({ show: false })
-        w.webContents.once('did-finish-load', () => {
-          // History should have current page by now.
-          assert.strictEqual(w.webContents.length(), 1)
-
-          w.webContents.executeJavaScript('window.history.pushState({}, "")', () => {
-            // Initial page + pushed state
-            assert.strictEqual(w.webContents.length(), 2)
-            done()
-          })
-        })
-        w.loadURL('about:blank')
+      }).catch(function (e) {
+        done(e)
       })
     })
   })
 
-  describe('SpeechSynthesis', () => {
-    before(function () {
-      if (isCI || !features.isTtsEnabled()) {
-        this.skip()
-      }
+  describe('window.alert(message, title)', function () {
+    it('throws an exception when the arguments cannot be converted to strings', function () {
+      assert.throws(function () {
+        window.alert({toString: null})
+      }, /Cannot convert object to primitive value/)
+
+      assert.throws(function () {
+        window.alert('message', {toString: 3})
+      }, /Cannot convert object to primitive value/)
     })
+  })
 
-    it('should emit lifecycle events', async () => {
-      const sentence = `long sentence which will take at least a few seconds to
-          utter so that it's possible to pause and resume before the end`
-      const utter = new SpeechSynthesisUtterance(sentence)
-      // Create a dummy utterence so that speech synthesis state
-      // is initialized for later calls.
-      speechSynthesis.speak(new SpeechSynthesisUtterance())
-      speechSynthesis.cancel()
-      speechSynthesis.speak(utter)
-      // paused state after speak()
-      expect(speechSynthesis.paused).to.be.false()
-      await new Promise((resolve) => { utter.onstart = resolve })
-      // paused state after start event
-      expect(speechSynthesis.paused).to.be.false()
+  describe('window.confirm(message, title)', function () {
+    it('throws an exception when the arguments cannot be converted to strings', function () {
+      assert.throws(function () {
+        window.confirm({toString: null}, 'title')
+      }, /Cannot convert object to primitive value/)
 
-      speechSynthesis.pause()
-      // paused state changes async, right before the pause event
-      expect(speechSynthesis.paused).to.be.false()
-      await new Promise((resolve) => { utter.onpause = resolve })
-      expect(speechSynthesis.paused).to.be.true()
+      assert.throws(function () {
+        window.confirm('message', {toString: 3})
+      }, /Cannot convert object to primitive value/)
+    })
+  })
 
-      speechSynthesis.resume()
-      await new Promise((resolve) => { utter.onresume = resolve })
-      // paused state after resume event
-      expect(speechSynthesis.paused).to.be.false()
-
-      await new Promise((resolve) => { utter.onend = resolve })
+  describe('window.history.go(offset)', function () {
+    it('throws an exception when the argumnet cannot be converted to a string', function () {
+      assert.throws(function () {
+        window.history.go({toString: null})
+      }, /Cannot convert object to primitive value/)
     })
   })
 })

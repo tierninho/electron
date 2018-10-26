@@ -5,7 +5,7 @@
 Process: [Main](../glossary.md#main-process)
 
 ```javascript
-const { systemPreferences } = require('electron')
+const {systemPreferences} = require('electron')
 console.log(systemPreferences.isDarkMode())
 ```
 
@@ -35,14 +35,6 @@ Returns:
 * `invertedColorScheme` Boolean - `true` if an inverted color scheme, such as
   a high contrast theme, is being used, `false` otherwise.
 
-### Event: 'appearance-changed' _macOS_
-
-Returns:
-
-* `newAppearance` String - Can be `dark` or `light`
-
-**NOTE:** This event is only emitted after you have called `startAppLevelAppearanceTrackingOS`
-
 ## Methods
 
 ### `systemPreferences.isDarkMode()` _macOS_
@@ -62,14 +54,6 @@ Posts `event` as native notifications of macOS. The `userInfo` is an Object
 that contains the user information dictionary sent along with the notification.
 
 ### `systemPreferences.postLocalNotification(event, userInfo)` _macOS_
-
-* `event` String
-* `userInfo` Object
-
-Posts `event` as native notifications of macOS. The `userInfo` is an Object
-that contains the user information dictionary sent along with the notification.
-
-### `systemPreferences.postWorkspaceNotification(event, userInfo)` _macOS_
 
 * `event` String
 * `userInfo` Object
@@ -100,6 +84,12 @@ example values of `event` are:
 * `AppleColorPreferencesChangedNotification`
 * `AppleShowScrollBarsSettingChanged`
 
+### `systemPreferences.unsubscribeNotification(id)` _macOS_
+
+* `id` Integer
+
+Removes the subscriber with `id`.
+
 ### `systemPreferences.subscribeLocalNotification(event, callback)` _macOS_
 
 * `event` String
@@ -108,23 +98,7 @@ example values of `event` are:
   * `userInfo` Object
 
 Same as `subscribeNotification`, but uses `NSNotificationCenter` for local defaults.
-This is necessary for events such as `NSUserDefaultsDidChangeNotification`.
-
-### `systemPreferences.subscribeWorkspaceNotification(event, callback)` _macOS_
-
-* `event` String
-* `callback` Function
-  * `event` String
-  * `userInfo` Object
-
-Same as `subscribeNotification`, but uses `NSWorkspace.sharedWorkspace.notificationCenter`.
-This is necessary for events such as `NSWorkspaceDidActivateApplicationNotification`.
-
-### `systemPreferences.unsubscribeNotification(id)` _macOS_
-
-* `id` Integer
-
-Removes the subscriber with `id`.
+This is necessary for events such as `NSUserDefaultsDidChangeNotification`
 
 ### `systemPreferences.unsubscribeLocalNotification(id)` _macOS_
 
@@ -132,69 +106,50 @@ Removes the subscriber with `id`.
 
 Same as `unsubscribeNotification`, but removes the subscriber from `NSNotificationCenter`.
 
-### `systemPreferences.unsubscribeWorkspaceNotification(id)` _macOS_
-
-* `id` Integer
-
-Same as `unsubscribeNotification`, but removes the subscriber from `NSWorkspace.sharedWorkspace.notificationCenter`.
-
-### `systemPreferences.registerDefaults(defaults)` _macOS_		
-
-* `defaults` Object - a dictionary of (`key: value`) user defaults			
-
-Add the specified defaults to your application's `NSUserDefaults`.
-
 ### `systemPreferences.getUserDefault(key, type)` _macOS_
 
 * `key` String
 * `type` String - Can be `string`, `boolean`, `integer`, `float`, `double`,
-  `url`, `array` or `dictionary`.
+  `url`, `array`, `dictionary`
 
-Returns `any` - The value of `key` in `NSUserDefaults`.
+Get the value of `key` in system preferences.
 
-Some popular `key` and `type`s are:
+This API uses `NSUserDefaults` on macOS. Some popular `key` and `type`s are:
 
-* `AppleInterfaceStyle`: `string`
-* `AppleAquaColorVariant`: `integer`
-* `AppleHighlightColor`: `string`
-* `AppleShowScrollBars`: `string`
-* `NSNavRecentPlaces`: `array`
-* `NSPreferredWebServices`: `dictionary`
-* `NSUserDictionaryReplacementItems`: `array`
+* `AppleInterfaceStyle`:  `string`
+* `AppleAquaColorVariant`:  `integer`
+* `AppleHighlightColor`:  `string`
+* `AppleShowScrollBars`:  `string`
+* `NSNavRecentPlaces`:  `array`
+* `NSPreferredWebServices`:  `dictionary`
+* `NSUserDictionaryReplacementItems`:  `array`
 
 ### `systemPreferences.setUserDefault(key, type, value)` _macOS_
 
 * `key` String
-* `type` String - See [`getUserDefault`](#systempreferencesgetuserdefaultkey-type-macos).
+* `type` String - See [`getUserDefault`][#systempreferencesgetuserdefaultkey-type-macos]
 * `value` String
 
-Set the value of `key` in `NSUserDefaults`.
+Set the value of `key` in system preferences.
 
 Note that `type` should match actual type of `value`. An exception is thrown
 if they don't.
 
-Some popular `key` and `type`s are:
+This API uses `NSUserDefaults` on macOS. Some popular `key` and `type`s are:
 
-* `ApplePressAndHoldEnabled`: `boolean`
-
-### `systemPreferences.removeUserDefault(key)` _macOS_
-
-* `key` String
-
-Removes the `key` in `NSUserDefaults`. This can be used to restore the default
-or global value of a `key` previously set with `setUserDefault`.
+* `ApplePressAndHoldEnabled`:  `boolean`
 
 ### `systemPreferences.isAeroGlassEnabled()` _Windows_
 
-Returns `Boolean` - `true` if [DWM composition][dwm-composition] (Aero Glass) is
+This method returns `true` if [DWM composition][dwm-composition] (Aero Glass) is
 enabled, and `false` otherwise.
 
 An example of using it to determine if you should create a transparent window or
 not (transparent windows won't work correctly when DWM composition is disabled):
 
 ```javascript
-const { BrowserWindow, systemPreferences } = require('electron')
-let browserOptions = { width: 1000, height: 800 }
+const {BrowserWindow, systemPreferences} = require('electron')
+let browserOptions = {width: 1000, height: 800}
 
 // Make the window transparent only if the platform supports it.
 if (process.platform !== 'win32' || systemPreferences.isAeroGlassEnabled()) {
@@ -282,34 +237,3 @@ Returns `Boolean` - `true` if an inverted color scheme, such as a high contrast
 theme, is active, `false` otherwise.
 
 [windows-colors]:https://msdn.microsoft.com/en-us/library/windows/desktop/ms724371(v=vs.85).aspx
-
-### `systemPreferences.getEffectiveAppearance()` _macOS_
-
-Returns `String` - Can be `dark`, `light` or `unknown`.
-
-Gets the macOS appearance setting that is currently applied to your application,
-maps to [NSApplication.effectiveAppearance](https://developer.apple.com/documentation/appkit/nsapplication/2967171-effectiveappearance?language=objc)
-
-Please note that until Electron is built targeting the 10.14 SDK, your application's
-`effectiveAppearance` will default to 'light' and won't inherit the OS preference. In
-the interim in order for your application to inherit the OS preference you must set the
-`NSRequiresAquaSystemAppearance` key in your apps `Info.plist` to `false`.  If you are
-using `electron-packager` or `electron-forge` just set the `enableDarwinDarkMode`
-packager option to `true`.  See the [Electron Packager API](https://github.com/electron-userland/electron-packager/blob/master/docs/api.md#darwindarkmodesupport)
-for more details.
-
-
-### `systemPreferences.getAppLevelAppearance()` _macOS_
-
-Returns `String` | `null` - Can be `dark`, `light` or `unknown`.
-
-Gets the macOS appearance setting that you have declared you want for
-your application, maps to [NSApplication.appearance](https://developer.apple.com/documentation/appkit/nsapplication/2967170-appearance?language=objc).
-You can use the `setAppLevelAppearance` API to set this value.
-
-### `systemPreferences.setAppLevelAppearance(appearance)` _macOS_
-
-* `appearance` String | null - Can be `dark` or `light`
-
-Sets the appearance setting for your application, this should override the
-system default and override the value of `getEffectiveAppearance`.

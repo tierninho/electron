@@ -1,56 +1,38 @@
 #!/usr/bin/env python
 
-import argparse
 import errno
 import sys
 import os
 
-from lib.config import PLATFORM, get_target_arch
-from lib.util import add_exec_bit, download, extract_zip, rm_rf, \
-                     safe_mkdir, tempdir
+from lib.config import get_target_arch
+from lib.util import safe_mkdir, rm_rf, extract_zip, tempdir, download
 
+
+VERSION = 'v1.2.0'
 SOURCE_ROOT = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
+FRAMEWORKS_URL = 'http://github.com/electron/electron-frameworks/releases' \
+                 '/download/' + VERSION
 
-def parse_args():
-  parser = argparse.ArgumentParser(
-      description='Download binaries for Electron build')
-
-  parser.add_argument('-u', '--root-url', required=True,
-                      help="Root URL for all downloads.")
-  parser.add_argument('-v', '--version', required=True,
-                      help="Version string, e.g. 'v1.0.0'.")
-
-  return parser.parse_args()
 
 def main():
-  args = parse_args()
-  url_prefix = "{root_url}/{version}".format(**vars(args))
-
   os.chdir(SOURCE_ROOT)
   version_file = os.path.join(SOURCE_ROOT, 'external_binaries', '.version')
 
-  if (is_updated(version_file, args.version)):
+  if (is_updated(version_file, VERSION)):
     return
 
   rm_rf('external_binaries')
   safe_mkdir('external_binaries')
 
   if sys.platform == 'darwin':
-    download_and_unzip(url_prefix, 'Mantle')
-    download_and_unzip(url_prefix, 'ReactiveCocoa')
-    download_and_unzip(url_prefix, 'Squirrel')
+    download_and_unzip('Mantle')
+    download_and_unzip('ReactiveCocoa')
+    download_and_unzip('Squirrel')
   elif sys.platform in ['cygwin', 'win32']:
-    download_and_unzip(url_prefix, 'directxsdk-' + get_target_arch())
-
-  # get sccache & set exec bit. https://bugs.python.org/issue15795
-  download_and_unzip(url_prefix, 'sccache-{0}-x64'.format(PLATFORM))
-  appname = 'sccache'
-  if sys.platform == 'win32':
-    appname += '.exe'
-  add_exec_bit(os.path.join('external_binaries', appname))
+    download_and_unzip('directxsdk-' + get_target_arch())
 
   with open(version_file, 'w') as f:
-    f.write(args.version)
+    f.write(VERSION)
 
 
 def is_updated(version_file, version):
@@ -64,15 +46,15 @@ def is_updated(version_file, version):
   return existing_version == version
 
 
-def download_and_unzip(url_prefix, framework):
-  zip_path = download_framework(url_prefix, framework)
+def download_and_unzip(framework):
+  zip_path = download_framework(framework)
   if zip_path:
     extract_zip(zip_path, 'external_binaries')
 
 
-def download_framework(url_prefix, framework):
+def download_framework(framework):
   filename = framework + '.zip'
-  url = url_prefix + '/' + filename
+  url = FRAMEWORKS_URL + '/' + filename
   download_dir = tempdir(prefix='electron-')
   path = os.path.join(download_dir, filename)
 

@@ -110,8 +110,8 @@ bool ParseCommandLine(const COPYDATASTRUCT* cds,
   const std::wstring::size_type first_null = msg.find_first_of(L'\0');
   if (first_null == 0 || first_null == std::wstring::npos) {
     // no NULL byte, don't know what to do
-    LOG(WARNING) << "Invalid WM_COPYDATA, length = " << msg.length()
-                 << ", first null = " << first_null;
+    LOG(WARNING) << "Invalid WM_COPYDATA, length = " << msg.length() <<
+      ", first null = " << first_null;
     return false;
   }
 
@@ -122,22 +122,23 @@ bool ParseCommandLine(const COPYDATASTRUCT* cds,
     VLOG(1) << "Handling STARTUP request from another process";
     const std::wstring::size_type second_null =
         msg.find_first_of(L'\0', first_null + 1);
-    if (second_null == std::wstring::npos || first_null == msg.length() - 1 ||
-        second_null == msg.length()) {
+    if (second_null == std::wstring::npos ||
+        first_null == msg.length() - 1 || second_null == msg.length()) {
       LOG(WARNING) << "Invalid format for start command, we need a string in 4 "
-                      "parts separated by NULLs";
+        "parts separated by NULLs";
       return false;
     }
 
     // Get current directory.
-    *current_directory =
-        base::FilePath(msg.substr(first_null + 1, second_null - first_null));
+    *current_directory = base::FilePath(msg.substr(first_null + 1,
+                                                   second_null - first_null));
 
     const std::wstring::size_type third_null =
         msg.find_first_of(L'\0', second_null + 1);
-    if (third_null == std::wstring::npos || third_null == msg.length()) {
+    if (third_null == std::wstring::npos ||
+        third_null == msg.length()) {
       LOG(WARNING) << "Invalid format for start command, we need a string in 4 "
-                      "parts separated by NULLs";
+        "parts separated by NULLs";
     }
 
     // Get command line.
@@ -168,9 +169,8 @@ bool ProcessLaunchNotification(
     return true;
   }
 
-  *result = notification_callback.Run(parsed_command_line, current_directory)
-                ? TRUE
-                : FALSE;
+  *result = notification_callback.Run(parsed_command_line, current_directory) ?
+      TRUE : FALSE;
   return true;
 }
 
@@ -189,13 +189,13 @@ ProcessSingleton::ProcessSingleton(
       is_virtualized_(false),
       lock_file_(INVALID_HANDLE_VALUE),
       user_data_dir_(user_data_dir),
-      should_kill_remote_process_callback_(base::Bind(&TerminateAppWithError)) {
+      should_kill_remote_process_callback_(
+          base::Bind(&TerminateAppWithError)) {
   // The user_data_dir may have not been created yet.
   base::CreateDirectoryAndGetError(user_data_dir, nullptr);
 }
 
 ProcessSingleton::~ProcessSingleton() {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   if (lock_file_ != INVALID_HANDLE_VALUE)
     ::CloseHandle(lock_file_);
 }
@@ -231,7 +231,8 @@ ProcessSingleton::NotifyResult ProcessSingleton::NotifyOtherProcess() {
 
   // The window is hung. Scan for every window to find a visible one.
   bool visible_window = false;
-  ::EnumThreadWindows(thread_id, &BrowserWindowEnumeration,
+  ::EnumThreadWindows(thread_id,
+                      &BrowserWindowEnumeration,
                       reinterpret_cast<LPARAM>(&visible_window));
 
   // If there is a visible browser window, ask the user before killing it.
@@ -246,7 +247,8 @@ ProcessSingleton::NotifyResult ProcessSingleton::NotifyOtherProcess() {
   return PROCESS_NONE;
 }
 
-ProcessSingleton::NotifyResult ProcessSingleton::NotifyOtherProcessOrCreate() {
+ProcessSingleton::NotifyResult
+ProcessSingleton::NotifyOtherProcessOrCreate() {
   ProcessSingleton::NotifyResult result = PROCESS_NONE;
   if (!Create()) {
     result = NotifyOtherProcess();
@@ -255,9 +257,6 @@ ProcessSingleton::NotifyResult ProcessSingleton::NotifyOtherProcessOrCreate() {
   }
   return result;
 }
-
-void ProcessSingleton::StartListeningOnSocket() {}
-void ProcessSingleton::OnBrowserReady() {}
 
 // Look for a Chrome instance that uses the same profile directory. If there
 // isn't one, create a message window with its title set to the profile
@@ -289,14 +288,17 @@ bool ProcessSingleton::Create() {
       // We have to make sure there is no Chrome instance running on another
       // machine that uses the same profile.
       base::FilePath lock_file_path = user_data_dir_.AppendASCII(kLockfile);
-      lock_file_ =
-          ::CreateFile(lock_file_path.value().c_str(), GENERIC_WRITE,
-                       FILE_SHARE_READ, NULL, CREATE_ALWAYS,
-                       FILE_ATTRIBUTE_NORMAL | FILE_FLAG_DELETE_ON_CLOSE, NULL);
+      lock_file_ = ::CreateFile(lock_file_path.value().c_str(),
+                                GENERIC_WRITE,
+                                FILE_SHARE_READ,
+                                NULL,
+                                CREATE_ALWAYS,
+                                FILE_ATTRIBUTE_NORMAL |
+                                FILE_FLAG_DELETE_ON_CLOSE,
+                                NULL);
       DWORD error = ::GetLastError();
       LOG_IF(WARNING, lock_file_ != INVALID_HANDLE_VALUE &&
-                          error == ERROR_ALREADY_EXISTS)
-          << "Lock file exists but is writable.";
+          error == ERROR_ALREADY_EXISTS) << "Lock file exists but is writable.";
       LOG_IF(ERROR, lock_file_ == INVALID_HANDLE_VALUE)
           << "Lock file can not be created! Error code: " << error;
 
@@ -310,8 +312,7 @@ bool ProcessSingleton::Create() {
         // NB: Ensure that if the primary app gets started as elevated
         // admin inadvertently, secondary windows running not as elevated
         // will still be able to send messages
-        ::ChangeWindowMessageFilterEx(window_.hwnd(), WM_COPYDATA, MSGFLT_ALLOW,
-                                      NULL);
+        ::ChangeWindowMessageFilterEx(window_.hwnd(), WM_COPYDATA, MSGFLT_ALLOW, NULL);
         CHECK(result && window_.hwnd());
       }
     }
@@ -320,7 +321,8 @@ bool ProcessSingleton::Create() {
   return window_.hwnd() != NULL;
 }
 
-void ProcessSingleton::Cleanup() {}
+void ProcessSingleton::Cleanup() {
+}
 
 void ProcessSingleton::OverrideShouldKillRemoteProcessCallbackForTesting(
     const ShouldKillRemoteProcessCallback& display_dialog_callback) {

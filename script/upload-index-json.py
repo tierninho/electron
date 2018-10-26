@@ -2,46 +2,32 @@
 
 import os
 import sys
-import urllib2
 
-from lib.config import s3_config
-from lib.util import s3put, scoped_cwd, safe_mkdir, get_out_dir
+from lib.config import PLATFORM, s3_config
+from lib.util import electron_gyp, execute, s3put, scoped_cwd
+
 
 SOURCE_ROOT = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
-OUT_DIR     = get_out_dir()
+OUT_DIR     = os.path.join(SOURCE_ROOT, 'out', 'D')
 
-BASE_URL = 'https://electron-metadumper.herokuapp.com/?version='
+PROJECT_NAME = electron_gyp()['project_name%']
+PRODUCT_NAME = electron_gyp()['product_name%']
 
-version = sys.argv[1]
-authToken = os.getenv('META_DUMPER_AUTH_HEADER')
-
-def get_content(retry_count = 5):
-  try:
-    request = urllib2.Request(
-      BASE_URL + version,
-      headers={"Authorization" : authToken}
-    )
-
-    return urllib2.urlopen(
-      request
-    ).read()
-  except Exception as e:
-    if retry_count == 0:
-      raise e
-    return get_content(retry_count - 1)
 
 def main():
-  if not authToken or authToken == "":
-    raise Exception("Please set META_DUMPER_AUTH_HEADER")
   # Upload the index.json.
   with scoped_cwd(SOURCE_ROOT):
-    safe_mkdir(OUT_DIR)
+    if sys.platform == 'darwin':
+      electron = os.path.join(OUT_DIR, '{0}.app'.format(PRODUCT_NAME),
+                                'Contents', 'MacOS', PRODUCT_NAME)
+    elif sys.platform == 'win32':
+      electron = os.path.join(OUT_DIR, '{0}.exe'.format(PROJECT_NAME))
+    else:
+      electron = os.path.join(OUT_DIR, PROJECT_NAME)
     index_json = os.path.relpath(os.path.join(OUT_DIR, 'index.json'))
-
-    new_content = get_content()
-
-    with open(index_json, "w") as f:
-      f.write(new_content)
+    execute([electron,
+             os.path.join('tools', 'dump-version-info.js'),
+             index_json])
 
     bucket, access_key, secret_key = s3_config()
     s3put(bucket, access_key, secret_key, OUT_DIR, 'atom-shell/dist',

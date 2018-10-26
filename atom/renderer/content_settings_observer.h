@@ -7,7 +7,7 @@
 
 #include "base/compiler_specific.h"
 #include "content/public/renderer/render_frame_observer.h"
-#include "third_party/blink/public/platform/web_content_settings_client.h"
+#include "third_party/WebKit/public/web/WebContentSettingsClient.h"
 
 namespace atom {
 
@@ -18,11 +18,11 @@ class ContentSettingsObserver : public content::RenderFrameObserver,
   ~ContentSettingsObserver() override;
 
   // blink::WebContentSettingsClient implementation.
-  bool AllowDatabase(const blink::WebString& name,
+  bool allowDatabase(const blink::WebString& name,
                      const blink::WebString& display_name,
                      unsigned estimated_size) override;
-  bool AllowStorage(bool local) override;
-  bool AllowIndexedDB(const blink::WebString& name,
+  bool allowStorage(bool local) override;
+  bool allowIndexedDB(const blink::WebString& name,
                       const blink::WebSecurityOrigin& security_origin) override;
 
  private:

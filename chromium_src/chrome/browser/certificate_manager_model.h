@@ -44,11 +44,11 @@ class CertificateManagerModel {
   // |data|, using the given |password|. If |is_extractable| is false,
   // mark the private key as unextractable from the module.
   // Returns a net error code on failure.
-  int ImportFromPKCS12(PK11SlotInfo* slot_info,
+  int ImportFromPKCS12(net::CryptoModule* module,
                        const std::string& data,
                        const base::string16& password,
                        bool is_extractable,
-                       net::ScopedCERTCertificateList* imported_certs);
+                       net::CertificateList* imported_certs);
 
   // Import user certificate from DER encoded |data|.
   // Returns a net error code on failure.
@@ -62,7 +62,7 @@ class CertificateManagerModel {
   // Returns false if there is an internal error, otherwise true is returned and
   // |not_imported| should be checked for any certificates that were not
   // imported.
-  bool ImportCACerts(const net::ScopedCERTCertificateList& certificates,
+  bool ImportCACerts(const net::CertificateList& certificates,
                      net::NSSCertDatabase::TrustBits trust_bits,
                      net::NSSCertDatabase::ImportCertFailureList* not_imported);
 
@@ -77,20 +77,20 @@ class CertificateManagerModel {
   // |not_imported| should be checked for any certificates that were not
   // imported.
   bool ImportServerCert(
-      const net::ScopedCERTCertificateList& certificates,
+      const net::CertificateList& certificates,
       net::NSSCertDatabase::TrustBits trust_bits,
       net::NSSCertDatabase::ImportCertFailureList* not_imported);
 
   // Set trust values for certificate.
   // |trust_bits| should be a bit field of TRUST* values from NSSCertDatabase.
   // Returns true on success or false on failure.
-  bool SetCertTrust(CERTCertificate* cert,
+  bool SetCertTrust(const net::X509Certificate* cert,
                     net::CertType type,
                     net::NSSCertDatabase::TrustBits trust_bits);
 
   // Delete the cert.  Returns true on success.  |cert| is still valid when this
   // function returns.
-  bool Delete(CERTCertificate* cert);
+  bool Delete(net::X509Certificate* cert);
 
  private:
   CertificateManagerModel(net::NSSCertDatabase* nss_cert_database,
@@ -98,11 +98,13 @@ class CertificateManagerModel {
 
   // Methods used during initialization, see the comment at the top of the .cc
   // file for details.
-  static void DidGetCertDBOnUIThread(net::NSSCertDatabase* cert_db,
-                                     bool is_user_db_available,
-                                     const CreationCallback& callback);
-  static void DidGetCertDBOnIOThread(const CreationCallback& callback,
-                                     net::NSSCertDatabase* cert_db);
+  static void DidGetCertDBOnUIThread(
+      net::NSSCertDatabase* cert_db,
+      bool is_user_db_available,
+      const CreationCallback& callback);
+  static void DidGetCertDBOnIOThread(
+      const CreationCallback& callback,
+      net::NSSCertDatabase* cert_db);
   static void GetCertDBOnIOThread(content::ResourceContext* context,
                                   const CreationCallback& callback);
 

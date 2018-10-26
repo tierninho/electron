@@ -2,13 +2,13 @@
 
 > Create TouchBar layouts for native macOS applications
 
-Process: [Main](../tutorial/application-architecture.md#main-and-renderer-processes)
+Process: [Main](../tutorial/quick-start.md#main-process)
 
 ### `new TouchBar(options)` _Experimental_
 
-* `options` Object
+* `options` - Object
   * `items` ([TouchBarButton](touch-bar-button.md) | [TouchBarColorPicker](touch-bar-color-picker.md) | [TouchBarGroup](touch-bar-group.md) | [TouchBarLabel](touch-bar-label.md) | [TouchBarPopover](touch-bar-popover.md) | [TouchBarScrubber](touch-bar-scrubber.md) | [TouchBarSegmentedControl](touch-bar-segmented-control.md) | [TouchBarSlider](touch-bar-slider.md) | [TouchBarSpacer](touch-bar-spacer.md))[]
-  * `escapeItem` ([TouchBarButton](touch-bar-button.md) | [TouchBarColorPicker](touch-bar-color-picker.md) | [TouchBarGroup](touch-bar-group.md) | [TouchBarLabel](touch-bar-label.md) | [TouchBarPopover](touch-bar-popover.md) | [TouchBarScrubber](touch-bar-scrubber.md) | [TouchBarSegmentedControl](touch-bar-segmented-control.md) | [TouchBarSlider](touch-bar-slider.md) | [TouchBarSpacer](touch-bar-spacer.md) | null) (optional)
+  * `escapeItem` ([TouchBarButton](touch-bar-button.md) | [TouchBarColorPicker](touch-bar-color-picker.md) | [TouchBarGroup](touch-bar-group.md) | [TouchBarLabel](touch-bar-label.md) | [TouchBarPopover](touch-bar-popover.md) | [TouchBarScrubber](touch-bar-scrubber.md) | [TouchBarSegmentedControl](touch-bar-segmented-control.md) | [TouchBarSlider](touch-bar-slider.md) | [TouchBarSpacer](touch-bar-spacer.md)) (optional)
 
 Creates a new touch bar with the specified items. Use
 `BrowserWindow.setTouchBar` to add the `TouchBar` to a window.
@@ -26,7 +26,7 @@ The following properties are available on instances of `TouchBar`:
 
 #### `touchBar.escapeItem`
 
-A `TouchBarItem` that will replace the "esc" button on the touch bar when set.
+The `TouchBarItem` that will replace the "esc" button on the touch bar when set.
 Setting to `null` restores the default "esc" button. Changing this value
 immediately updates the escape item in the touch bar.
 
@@ -36,9 +36,9 @@ Below is an example of a simple slot machine touch bar game with a button
 and some labels.
 
 ```javascript
-const { app, BrowserWindow, TouchBar } = require('electron')
+const {app, BrowserWindow, TouchBar} = require('electron')
 
-const { TouchBarLabel, TouchBarButton, TouchBarSpacer } = TouchBar
+const {TouchBarLabel, TouchBarButton, TouchBarSpacer} = TouchBar
 
 let spinning = false
 
@@ -114,13 +114,13 @@ const finishSpin = () => {
 
 const touchBar = new TouchBar([
   spin,
-  new TouchBarSpacer({ size: 'large' }),
+  new TouchBarSpacer({size: 'large'}),
   reel1,
-  new TouchBarSpacer({ size: 'small' }),
+  new TouchBarSpacer({size: 'small'}),
   reel2,
-  new TouchBarSpacer({ size: 'small' }),
+  new TouchBarSpacer({size: 'small'}),
   reel3,
-  new TouchBarSpacer({ size: 'large' }),
+  new TouchBarSpacer({size: 'large'}),
   result
 ])
 
@@ -129,7 +129,7 @@ let window
 app.once('ready', () => {
   window = new BrowserWindow({
     frame: false,
-    titleBarStyle: 'hiddenInset',
+    titleBarStyle: 'hidden-inset',
     width: 200,
     height: 200,
     backgroundColor: '#000'
@@ -141,7 +141,7 @@ app.once('ready', () => {
 
 ### Running the above example
 
-To run the example above, you'll need to (assuming you've got a terminal open in the directory you want to run the example):
+To run the example above, you'll need to (assuming you've got a terminal open in the dirtectory you want to run the example):
 
 1. Save the above file to your computer as `touchbar.js`
 2. Install Electron via `npm install electron`

@@ -9,7 +9,7 @@ be triggered only when the app is focused. To do so, specify an
 [`accelerator`] property when creating a [MenuItem].
 
 ```js
-const { Menu, MenuItem } = require('electron')
+const {Menu, MenuItem} = require('electron')
 const menu = new Menu()
 
 menu.append(new MenuItem({
@@ -19,7 +19,7 @@ menu.append(new MenuItem({
 }))
 ```
 
-You can configure different key combinations based on the user's operating system.
+It's easy to configure different key combinations based on the user's operating system.
 
 ```js
 {
@@ -33,7 +33,7 @@ You can use the [globalShortcut] module to detect keyboard events even when
 the application does not have keyboard focus.
 
 ```js
-const { app, globalShortcut } = require('electron')
+const {app, globalShortcut} = require('electron')
 
 app.on('ready', () => {
   globalShortcut.register('CommandOrControl+X', () => {
@@ -51,10 +51,6 @@ window.addEventListener('keyup', doSomething, true)
 ```
 
 Note the third parameter `true` which means the listener will always receive key presses before other listeners so they can't have `stopPropagation()` called on them.
-
-The [`before-input-event`](../api/web-contents.md#event-before-input-event) event
-is emitted before dispatching `keydown` and `keyup` events in the page. It can
-be used to catch and handle custom shortcuts that are not visible in the menu.
 
 If you don't want to do manual shortcut parsing there are libraries that do advanced key detection such as [mousetrap].
 

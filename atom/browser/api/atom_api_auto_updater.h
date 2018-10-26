@@ -32,9 +32,6 @@ class AutoUpdater : public mate::EventEmitter<AutoUpdater>,
 
   // Delegate implementations.
   void OnError(const std::string& error) override;
-  void OnError(const std::string& message,
-               const int code,
-               const std::string& domain) override;
   void OnCheckingForUpdate() override;
   void OnUpdateAvailable() override;
   void OnUpdateNotAvailable() override;
@@ -48,7 +45,7 @@ class AutoUpdater : public mate::EventEmitter<AutoUpdater>,
 
  private:
   std::string GetFeedURL();
-  void SetFeedURL(mate::Arguments* args);
+  void SetFeedURL(const std::string& url, mate::Arguments* args);
   void QuitAndInstall();
 
   DISALLOW_COPY_AND_ASSIGN(AutoUpdater);

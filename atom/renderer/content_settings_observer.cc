@@ -5,53 +5,54 @@
 #include "atom/renderer/content_settings_observer.h"
 
 #include "content/public/renderer/render_frame.h"
-#include "third_party/blink/public/platform/url_conversion.h"
-#include "third_party/blink/public/platform/web_security_origin.h"
-#include "third_party/blink/public/web/web_local_frame.h"
+#include "third_party/WebKit/public/platform/URLConversion.h"
+#include "third_party/WebKit/public/platform/WebSecurityOrigin.h"
+#include "third_party/WebKit/public/web/WebLocalFrame.h"
 
 namespace atom {
 
 ContentSettingsObserver::ContentSettingsObserver(
     content::RenderFrame* render_frame)
     : content::RenderFrameObserver(render_frame) {
-  render_frame->GetWebFrame()->SetContentSettingsClient(this);
+  render_frame->GetWebFrame()->setContentSettingsClient(this);
 }
 
-ContentSettingsObserver::~ContentSettingsObserver() {}
+ContentSettingsObserver::~ContentSettingsObserver() {
+}
 
-bool ContentSettingsObserver::AllowDatabase(
+bool ContentSettingsObserver::allowDatabase(
     const blink::WebString& name,
     const blink::WebString& display_name,
     unsigned estimated_size) {
   blink::WebFrame* frame = render_frame()->GetWebFrame();
-  if (frame->GetSecurityOrigin().IsUnique() ||
-      frame->Top()->GetSecurityOrigin().IsUnique())
+  if (frame->getSecurityOrigin().isUnique() ||
+      frame->top()->getSecurityOrigin().isUnique())
     return false;
-  auto origin = blink::WebStringToGURL(frame->GetSecurityOrigin().ToString());
+  auto origin = blink::WebStringToGURL(frame->getSecurityOrigin().toString());
   if (!origin.IsStandard())
     return false;
   return true;
 }
 
-bool ContentSettingsObserver::AllowStorage(bool local) {
+bool ContentSettingsObserver::allowStorage(bool local) {
   blink::WebFrame* frame = render_frame()->GetWebFrame();
-  if (frame->GetSecurityOrigin().IsUnique() ||
-      frame->Top()->GetSecurityOrigin().IsUnique())
+  if (frame->getSecurityOrigin().isUnique() ||
+      frame->top()->getSecurityOrigin().isUnique())
     return false;
-  auto origin = blink::WebStringToGURL(frame->GetSecurityOrigin().ToString());
+  auto origin = blink::WebStringToGURL(frame->getSecurityOrigin().toString());
   if (!origin.IsStandard())
     return false;
   return true;
 }
 
-bool ContentSettingsObserver::AllowIndexedDB(
+bool ContentSettingsObserver::allowIndexedDB(
     const blink::WebString& name,
     const blink::WebSecurityOrigin& security_origin) {
   blink::WebFrame* frame = render_frame()->GetWebFrame();
-  if (frame->GetSecurityOrigin().IsUnique() ||
-      frame->Top()->GetSecurityOrigin().IsUnique())
+  if (frame->getSecurityOrigin().isUnique() ||
+      frame->top()->getSecurityOrigin().isUnique())
     return false;
-  auto origin = blink::WebStringToGURL(frame->GetSecurityOrigin().ToString());
+  auto origin = blink::WebStringToGURL(frame->getSecurityOrigin().toString());
   if (!origin.IsStandard())
     return false;
   return true;

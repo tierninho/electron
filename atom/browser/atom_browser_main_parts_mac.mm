@@ -4,6 +4,7 @@
 
 #include "atom/browser/atom_browser_main_parts.h"
 
+#include "atom/browser/mac/atom_application.h"
 #include "atom/browser/mac/atom_application_delegate.h"
 #include "base/mac/bundle_locations.h"
 #include "base/mac/foundation_util.h"
@@ -12,6 +13,9 @@
 namespace atom {
 
 void AtomBrowserMainParts::PreMainMessageLoopStart() {
+  // Force the NSApplication subclass to be used.
+  [AtomApplication sharedApplication];
+
   // Set our own application delegate.
   AtomApplicationDelegate* delegate = [[AtomApplicationDelegate alloc] init];
   [NSApp setDelegate:delegate];
@@ -21,8 +25,7 @@ void AtomBrowserMainParts::PreMainMessageLoopStart() {
   // Prevent Cocoa from turning command-line arguments into
   // |-application:openFiles:|, since we already handle them directly.
   [[NSUserDefaults standardUserDefaults]
-      setObject:@"NO"
-         forKey:@"NSTreatUnknownArgumentsAsOpen"];
+      setObject:@"NO" forKey:@"NSTreatUnknownArgumentsAsOpen"];
 }
 
 void AtomBrowserMainParts::FreeAppDelegate() {

@@ -1,60 +1,39 @@
-const { app, dialog } = require('electron')
+const {app, dialog, shell, Menu} = require('electron')
 
 const fs = require('fs')
 const Module = require('module')
 const path = require('path')
 const url = require('url')
 
-const { setDefaultApplicationMenu } = require('./menu')
-
 // Parse command line options.
 const argv = process.argv.slice(1)
-
-const option = {
-  file: null,
-  noHelp: Boolean(process.env.ELECTRON_NO_HELP),
-  version: null,
-  webdriver: null,
-  modules: []
-}
-
-let nextArgIsRequire = false
-
-for (const arg of argv) {
-  if (nextArgIsRequire) {
-    option.modules.push(arg)
-    nextArgIsRequire = false
-    continue
-  } else if (arg === '--version' || arg === '-v') {
+const option = { file: null, help: null, version: null, abi: null, webdriver: null, modules: [] }
+for (let i = 0; i < argv.length; i++) {
+  if (argv[i] === '--version' || argv[i] === '-v') {
     option.version = true
     break
-  } else if (arg.match(/^--app=/)) {
-    option.file = arg.split('=')[1]
-    break
-  } else if (arg === '--interactive' || arg === '-i' || arg === '-repl') {
-    option.interactive = true
-  } else if (arg === '--test-type=webdriver') {
-    option.webdriver = true
-  } else if (arg === '--require' || arg === '-r') {
-    nextArgIsRequire = true
-    continue
-  } else if (arg === '--abi' || arg === '-a') {
+  } else if (argv[i] === '--abi') {
     option.abi = true
+    break
+  } else if (argv[i].match(/^--app=/)) {
+    option.file = argv[i].split('=')[1]
+    break
+  } else if (argv[i] === '--help' || argv[i] === '-h') {
+    option.help = true
+    break
+  } else if (argv[i] === '--interactive' || argv[i] === '-i') {
+    option.interactive = true
+  } else if (argv[i] === '--test-type=webdriver') {
+    option.webdriver = true
+  } else if (argv[i] === '--require' || argv[i] === '-r') {
+    option.modules.push(argv[++i])
     continue
-  } else if (arg === '--no-help') {
-    option.noHelp = true
-    continue
-  } else if (arg[0] === '-') {
+  } else if (argv[i][0] === '-') {
     continue
   } else {
-    option.file = arg
+    option.file = argv[i]
     break
   }
-}
-
-if (nextArgIsRequire) {
-  console.error('Invalid Usage: --require [file]\n\n"file" is required')
-  process.exit(1)
 }
 
 // Quit when all windows are closed and no other one is listening to this.
@@ -66,21 +45,206 @@ app.on('window-all-closed', () => {
 
 // Create default menu.
 app.once('ready', () => {
-  setDefaultApplicationMenu()
+  if (Menu.getApplicationMenu()) return
+
+  const template = [
+    {
+      label: 'Edit',
+      submenu: [
+        {
+          role: 'undo'
+        },
+        {
+          role: 'redo'
+        },
+        {
+          type: 'separator'
+        },
+        {
+          role: 'cut'
+        },
+        {
+          role: 'copy'
+        },
+        {
+          role: 'paste'
+        },
+        {
+          role: 'pasteandmatchstyle'
+        },
+        {
+          role: 'delete'
+        },
+        {
+          role: 'selectall'
+        }
+      ]
+    },
+    {
+      label: 'View',
+      submenu: [
+        {
+          role: 'reload'
+        },
+        {
+          role: 'forcereload'
+        },
+        {
+          role: 'toggledevtools'
+        },
+        {
+          type: 'separator'
+        },
+        {
+          role: 'resetzoom'
+        },
+        {
+          role: 'zoomin'
+        },
+        {
+          role: 'zoomout'
+        },
+        {
+          type: 'separator'
+        },
+        {
+          role: 'togglefullscreen'
+        }
+      ]
+    },
+    {
+      role: 'window',
+      submenu: [
+        {
+          role: 'minimize'
+        },
+        {
+          role: 'close'
+        }
+      ]
+    },
+    {
+      role: 'help',
+      submenu: [
+        {
+          label: 'Learn More',
+          click () {
+            shell.openExternal('https://electron.atom.io')
+          }
+        },
+        {
+          label: 'Documentation',
+          click () {
+            shell.openExternal(
+              `https://github.com/electron/electron/tree/v${process.versions.electron}/docs#readme`
+            )
+          }
+        },
+        {
+          label: 'Community Discussions',
+          click () {
+            shell.openExternal('https://discuss.atom.io/c/electron')
+          }
+        },
+        {
+          label: 'Search Issues',
+          click () {
+            shell.openExternal('https://github.com/electron/electron/issues')
+          }
+        }
+      ]
+    }
+  ]
+
+  if (process.platform === 'darwin') {
+    template.unshift({
+      label: 'Electron',
+      submenu: [
+        {
+          role: 'about'
+        },
+        {
+          type: 'separator'
+        },
+        {
+          role: 'services',
+          submenu: []
+        },
+        {
+          type: 'separator'
+        },
+        {
+          role: 'hide'
+        },
+        {
+          role: 'hideothers'
+        },
+        {
+          role: 'unhide'
+        },
+        {
+          type: 'separator'
+        },
+        {
+          role: 'quit'
+        }
+      ]
+    })
+    template[1].submenu.push(
+      {
+        type: 'separator'
+      },
+      {
+        label: 'Speech',
+        submenu: [
+          {
+            role: 'startspeaking'
+          },
+          {
+            role: 'stopspeaking'
+          }
+        ]
+      }
+    )
+    template[3].submenu = [
+      {
+        role: 'close'
+      },
+      {
+        role: 'minimize'
+      },
+      {
+        role: 'zoom'
+      },
+      {
+        type: 'separator'
+      },
+      {
+        role: 'front'
+      }
+    ]
+  } else {
+    template.unshift({
+      label: 'File',
+      submenu: [
+        {
+          role: 'quit'
+        }
+      ]
+    })
+  }
+
+  const menu = Menu.buildFromTemplate(template)
+  Menu.setApplicationMenu(menu)
 })
 
-// Set up preload modules
 if (option.modules.length > 0) {
   Module._preloadModules(option.modules)
 }
 
 function loadApplicationPackage (packagePath) {
   // Add a flag indicating app is started from default app.
-  Object.defineProperty(process, 'defaultApp', {
-    configurable: false,
-    enumerable: true,
-    value: true
-  })
+  process.defaultApp = true
 
   try {
     // Override app name and version.
@@ -138,6 +302,7 @@ function startRepl () {
   if (process.platform === 'win32') {
     console.error('Electron REPL not currently supported on Windows')
     process.exit(1)
+    return
   }
 
   const repl = require('repl')
@@ -152,14 +317,10 @@ if (option.file && !option.webdriver) {
   const file = option.file
   const protocol = url.parse(file).protocol
   const extension = path.extname(file)
-  if (protocol === 'http:' || protocol === 'https:' || protocol === 'file:' || protocol === 'chrome:') {
+  if (protocol === 'http:' || protocol === 'https:' || protocol === 'file:') {
     loadApplicationByUrl(file)
   } else if (extension === '.html' || extension === '.htm') {
-    loadApplicationByUrl(url.format({
-      protocol: 'file:',
-      slashes: true,
-      pathname: path.resolve(file)
-    }))
+    loadApplicationByUrl('file://' + path.resolve(file))
   } else {
     loadApplicationPackage(file)
   }
@@ -169,34 +330,30 @@ if (option.file && !option.webdriver) {
 } else if (option.abi) {
   console.log(process.versions.modules)
   process.exit(0)
+} else if (option.help) {
+  const helpMessage = `Electron ${process.versions.electron} - Build cross platform desktop apps with JavaScript, HTML, and CSS
+
+  Usage: electron [options] [path]
+
+  A path to an Electron app may be specified. The path must be one of the following:
+
+    - index.js file.
+    - Folder containing a package.json file.
+    - Folder containing an index.js file.
+    - .html/.htm file.
+    - http://, https://, or file:// URL.
+
+  Options:
+    -h, --help            Print this usage message.
+    -i, --interactive     Open a REPL to the main process.
+    -r, --require         Module to preload (option can be repeated)
+    -v, --version         Print the version.
+    --abi                 Print the application binary interface.`
+  console.log(helpMessage)
+  process.exit(0)
 } else if (option.interactive) {
   startRepl()
 } else {
-  if (!option.noHelp) {
-    const welcomeMessage = `
-Electron ${process.versions.electron} - Build cross platform desktop apps with JavaScript, HTML, and CSS
-Usage: electron [options] [path]
-
-A path to an Electron app may be specified. It must be one of the following:
-  - index.js file.
-  - Folder containing a package.json file.
-  - Folder containing an index.js file.
-  - .html/.htm file.
-  - http://, https://, or file:// URL.
-
-Options:
-  -i, --interactive     Open a REPL to the main process.
-  -r, --require         Module to preload (option can be repeated).
-  -v, --version         Print the version.
-  -a, --abi             Print the Node ABI version.`
-
-    console.log(welcomeMessage)
-  }
-
   const indexPath = path.join(__dirname, '/index.html')
-  loadApplicationByUrl(url.format({
-    protocol: 'file:',
-    slashes: true,
-    pathname: indexPath
-  }))
+  loadApplicationByUrl(`file://${indexPath}`)
 }
